@@ -175,6 +175,23 @@ export const api = {
         if (!response.ok) throw new Error('Failed to remove from wishlist');
     },
 
+    // Orders
+    createOrder: async (userId: number, items: any[], total: number): Promise<Order> => {
+        const response = await fetch(`${API_URL}/orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, items, total }),
+        });
+        if (!response.ok) throw new Error('Failed to create order');
+        return response.json();
+    },
+
+    getUserOrders: async (userId: number): Promise<Order[]> => {
+        const response = await fetch(`${API_URL}/orders?userId=${userId}`);
+        if (!response.ok) throw new Error('Failed to fetch orders');
+        return response.json();
+    },
+
     // Vouchers
     getVouchers: async (): Promise<any[]> => {
         const response = await fetch(`${API_URL}/vouchers`);
