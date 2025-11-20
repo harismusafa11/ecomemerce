@@ -400,7 +400,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     <h4 className="font-semibold text-gray-700 mt-2">{t('admin.products.formImageUrls')}</h4>
                     {Array.from({ length: 7 }).map((_, index) => (
                         <input
-                            key={index}
+                            key={`imageUrl-${index}`}
                             name={`imageUrl${index}`}
                             value={formData[`imageUrl${index}`] || ''}
                             onChange={handleInputChange}
