@@ -31,12 +31,23 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
     ? ['https://tapakpamungkas.com', 'https://www.tapakpamungkas.com']
     : ['http://localhost:5173', 'http://localhost:3000'];
 
+// Allow all origins in production for Vercel preview/deployments if not matching specific domains
+// Or better yet, just rely on the fact that we are using rewrites so it's same-origin.
+// But to be safe, let's allow the Vercel app domain if you know it, or just allow all for this debugging phase.
+// Let's make it dynamic to allow any vercel.app domain.
+const allowVercel = (origin: string | undefined) => {
+    if (!origin) return true;
+    if (allowedOrigins.includes(origin)) return true;
+    if (origin.endsWith('.vercel.app')) return true;
+    return false;
+};
+
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (mobile apps, curl, etc)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowVercel(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
