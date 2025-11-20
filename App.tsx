@@ -301,23 +301,33 @@ const AppContent: React.FC = () => {
     const handleLogin = useCallback(async (email: string, pass: string): Promise<User | null> => {
         try {
             const user = await api.login(email, pass);
+            console.log('Login response:', user); // Debug log
             setCurrentUser(user);
             localStorage.setItem('currentUser', JSON.stringify(user));
 
-            // Fetch user data
-            const cartItemsData = await api.getCart(user.id);
-            setCartItems(cartItemsData.map((i: any) => ({ ...i.product, quantity: i.quantity })));
+            // Fetch user data (skip for admin to speed up login)
+            if (!user.isAdmin) {
+                try {
+                    const cartItemsData = await api.getCart(user.id);
+                    setCartItems(cartItemsData.map((i: any) => ({ ...i.product, quantity: i.quantity })));
 
-            const wishlist = await api.getWishlist(user.id);
-            setWishlistItems(wishlist.map((i: any) => i.productId));
+                    const wishlist = await api.getWishlist(user.id);
+                    setWishlistItems(wishlist.map((i: any) => i.productId));
 
-            const vouchers = await api.getUserVouchers(user.id);
-            setClaimedVouchers(vouchers.map((v: any) => v.id));
+                    const vouchers = await api.getUserVouchers(user.id);
+                    setClaimedVouchers(vouchers.map((v: any) => v.id));
+                } catch (error) {
+                    console.error('Failed to fetch user data:', error);
+                }
+            }
 
-            handleNavigate(user.isAdmin ? 'adminPanel' : 'home');
+            // Redirect based on admin status
+            const targetPage = user.isAdmin && user.email === ADMIN_EMAIL ? 'adminPanel' : 'home';
+            handleNavigate(targetPage);
             showToast(t('toasts.welcome', { name: user.name }), 'success');
             return user;
         } catch (error) {
+            console.error('Login error:', error);
             showToast(t('toasts.loginFailed'), 'error');
             return null;
         }
@@ -326,7 +336,10 @@ const AppContent: React.FC = () => {
     const handleAdminLogin = useCallback(async (email: string, pass: string): Promise<User | null> => {
         try {
             const user = await api.login(email, pass);
-            if (user.email === ADMIN_EMAIL) {
+            console.log('Admin login response:', user); // Debug log
+
+            // Check both isAdmin flag AND email match
+            if (user.isAdmin && user.email === ADMIN_EMAIL) {
                 setCurrentUser(user);
                 localStorage.setItem('currentUser', JSON.stringify(user));
                 handleNavigate('adminPanel');
@@ -337,6 +350,7 @@ const AppContent: React.FC = () => {
                 return null;
             }
         } catch (error) {
+            console.error('Admin login error:', error);
             showToast(t('toasts.loginFailed'), 'error');
             return null;
         }
