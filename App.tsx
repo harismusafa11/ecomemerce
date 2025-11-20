@@ -509,7 +509,7 @@ const AppContent: React.FC = () => {
     const showLayout = currentPage !== 'adminPanel' && currentPage !== 'adminLogin';
 
     return (
-        <div className="flex flex-col min-h-screen font-sans bg-brand-light">
+        <div className="flex flex-col min-h-screen w-full font-sans bg-brand-light">
             {showLayout && <Header
                 cartItemCount={cartItems.length}
                 wishlistItemCount={wishlistItems.length}
