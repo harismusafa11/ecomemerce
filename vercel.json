@@ -9,6 +9,10 @@
             "destination": "/api/register"
         },
         {
+            "source": "/api/products(.*)",
+            "destination": "/api/products"
+        },
+        {
             "source": "/api/cart(.*)",
             "destination": "/api/cart"
         },

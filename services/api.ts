@@ -11,7 +11,7 @@ export const api = {
     },
 
     getProduct: async (id: number): Promise<Product> => {
-        const response = await fetch(`${API_URL}/products/${id}`);
+        const response = await fetch(`${API_URL}/products?id=${id}`);
         if (!response.ok) throw new Error('Failed to fetch product');
         return response.json();
     },
@@ -27,7 +27,7 @@ export const api = {
     },
 
     updateProduct: async (id: number, product: Partial<Product>): Promise<Product> => {
-        const response = await fetch(`${API_URL}/products/${id}`, {
+        const response = await fetch(`${API_URL}/products?id=${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(product),
@@ -37,7 +37,7 @@ export const api = {
     },
 
     deleteProduct: async (id: number): Promise<void> => {
-        const response = await fetch(`${API_URL}/products/${id}`, {
+        const response = await fetch(`${API_URL}/products?id=${id}`, {
             method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to delete product');
