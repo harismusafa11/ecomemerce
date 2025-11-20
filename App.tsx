@@ -399,7 +399,7 @@ const AppContent: React.FC = () => {
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
-        setCartItems([]);
+        setCartItems([]); // Clear from UI only, stays in database
         setWishlistItems([]);
         setClaimedVouchers([]);
         handleNavigate('home');
