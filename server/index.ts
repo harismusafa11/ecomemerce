@@ -461,11 +461,28 @@ app.delete('/api/wishlist/:userId/item/:productId', async (req, res) => {
 // --- VOUCHERS ---
 app.get('/api/vouchers', async (req, res) => {
     try {
-        const vouchers = await prisma.voucher.findMany();
+        // Explicit select to exclude claimedBy relation
+        const vouchers = await prisma.voucher.findMany({
+            select: {
+                id: true,
+                code: true,
+                discountPercentage: true,
+                startDate: true,
+                endDate: true,
+                productId: true,
+                createdAt: true,
+                updatedAt: true
+                // Note: claimedBy relation explicitly excluded
+            }
+        });
         res.json(vouchers);
     } catch (error) {
         console.error('Vouchers fetch error:', error);
-        res.status(500).json({ error: 'Failed to fetch vouchers', details: error instanceof Error ? error.message : String(error) });
+        res.status(500).json({
+            error: 'Failed to fetch vouchers',
+            details: error instanceof Error ? error.message : String(error),
+            stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
+        });
     }
 });
 
