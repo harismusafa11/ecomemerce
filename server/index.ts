@@ -94,7 +94,8 @@ app.get('/api/products', async (req, res) => {
         const products = await prisma.product.findMany();
         res.json(products);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch products' });
+        console.error('Error fetching products:', error);
+        res.status(500).json({ error: 'Failed to fetch products', details: error instanceof Error ? error.message : String(error) });
     }
 });
 
