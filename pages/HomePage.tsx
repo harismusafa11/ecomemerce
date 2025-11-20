@@ -113,7 +113,7 @@ const HomePage: React.FC<HomePageProps> = ({
         visible: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.15
+                staggerChildren: 0.08 // Reduced from 0.15s for faster loading
             }
         }
     };
@@ -124,7 +124,7 @@ const HomePage: React.FC<HomePageProps> = ({
             y: 0,
             opacity: 1,
             transition: {
-                duration: 0.5,
+                duration: 0.4, // Reduced from 0.5s
                 ease: 'easeOut'
             }
         }
