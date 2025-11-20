@@ -64,9 +64,15 @@ vercel --prod
 
 ### Environment Variables (Vercel Dashboard)
 1. Go to Project Settings → Environment Variables
-2. Add:
-   - `DATABASE_URL` = your production database URL
-   - `NODE_ENV` = production
+2. Add these REQUIRED variables:
+   - `DATABASE_URL` = Your PostgreSQL connection string (with connection pooling)
+     - Format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE?pgbouncer=true&connection_limit=1`
+     - Example from Neon.tech: `postgresql://user:pass@ep-xyz.us-east-1.aws.neon.tech/dbname?sslmode=require`
+     - Example from Supabase: `postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres`
+   - `NODE_ENV` = `production`
+3. Click "Save" after adding each variable
+4. Redeploy the project after adding environment variables
+
 
 ### Custom Domain
 1. Go to Project Settings → Domains
