@@ -17,6 +17,10 @@
             "destination": "/api/orders"
         },
         {
+            "source": "/api/wishlist(.*)",
+            "destination": "/api/wishlist"
+        },
+        {
             "source": "/api/vouchers",
             "destination": "/api/vouchers"
         },

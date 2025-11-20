@@ -154,7 +154,7 @@ export const api = {
 
     // Wishlist
     getWishlist: async (userId: number): Promise<any[]> => {
-        const response = await fetch(`${API_URL}/wishlist/${userId}`);
+        const response = await fetch(`${API_URL}/wishlist?userId=${userId}`);
         if (!response.ok) throw new Error('Failed to fetch wishlist');
         return response.json();
     },
@@ -169,7 +169,7 @@ export const api = {
     },
 
     removeFromWishlist: async (userId: number, productId: number): Promise<void> => {
-        const response = await fetch(`${API_URL}/wishlist/${userId}/item/${productId}`, {
+        const response = await fetch(`${API_URL}/wishlist?userId=${userId}&productId=${productId}`, {
             method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to remove from wishlist');
