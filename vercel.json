@@ -13,6 +13,10 @@
             "destination": "/api/products"
         },
         {
+            "source": "/api/users(.*)",
+            "destination": "/api/users"
+        },
+        {
             "source": "/api/cart(.*)",
             "destination": "/api/cart"
         },
@@ -25,7 +29,7 @@
             "destination": "/api/wishlist"
         },
         {
-            "source": "/api/vouchers",
+            "source": "/api/vouchers(.*)",
             "destination": "/api/vouchers"
         },
         {

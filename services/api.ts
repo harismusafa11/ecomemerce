@@ -238,7 +238,7 @@ export const api = {
     },
 
     updateVoucher: async (id: number, voucher: { code: string; discountPercentage: number; startDate: string; endDate: string }): Promise<any> => {
-        const response = await fetch(`${API_URL}/vouchers/${id}`, {
+        const response = await fetch(`${API_URL}/vouchers?id=${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(voucher),
@@ -248,7 +248,7 @@ export const api = {
     },
 
     deleteVoucher: async (id: number): Promise<void> => {
-        const response = await fetch(`${API_URL}/vouchers/${id}`, {
+        const response = await fetch(`${API_URL}/vouchers?id=${id}`, {
             method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to delete voucher');
