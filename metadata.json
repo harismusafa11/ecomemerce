@@ -1,0 +1,5 @@
+{
+  "name": "ecommerce",
+  "description": "A modern e-commerce platform for 'Tapak Pamungkas' featuring product listings, a shopping cart, and an AI-powered chat assistant. Includes a comprehensive admin panel for managing products, orders, users, and promotional vouchers.",
+  "requestFramePermissions": []
+}

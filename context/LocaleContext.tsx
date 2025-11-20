@@ -1,0 +1,114 @@
+import React, { createContext, useState, useCallback, ReactNode } from 'react';
+
+type TranslationMessages = {
+  [key: string]: string | TranslationMessages;
+};
+
+const translations: { [key: string]: TranslationMessages } = {
+  en: {
+    header: { home: 'Home', products: 'Products', about: 'About Us', contact: 'Contact', login: 'Login', register: 'Register', myAccount: 'My Account', logout: 'Logout', wishlist: 'Wishlist', cart: 'Cart', searchPlaceholder: 'Search products...', vouchers: 'Vouchers', orderHistory: 'Order History' },
+    footer: { tagline: 'Preserving the archipelago\'s ancestral heritage with authentic spiritual and cultural products.', shopTitle: 'Shop', shopProducts: 'All Products', shopAbout: 'About Us', shopContact: 'Contact Us', helpTitle: 'Help', helpPrivacy: 'Privacy Policy', helpTerms: 'Terms of Service', helpFAQ: 'FAQ', socialTitle: 'Follow Us', socialTagline: 'Connect with us on social media.', copyright: 'All Rights Reserved' },
+    toasts: { adminAccessDenied: 'Admin access required.', loginToAdd: 'Please log in to add items to your cart.', itemAddedToCart: '{{name}} added to cart!', itemRemovedFromCart: '{{name}} removed from cart.', loginToWishlist: 'Please log in to use the wishlist.', itemRemovedFromWishlist: 'Item removed from wishlist.', itemAddedToWishlist: 'Item added to wishlist!', welcome: 'Welcome back, {{name}}!', loginFailed: 'Incorrect email or password.', logoutSuccess: 'You have been successfully logged out.', emailExists: 'An account with this email already exists.', registerSuccess: 'Registration successful! Welcome.', voucherClaimed: 'Voucher {{code}} successfully claimed!', loginToClaim: 'Please log in to claim vouchers.' },
+    home: { categoryKeilmuanTitle: "Spiritual Sciences", categoryKeilmuanDesc: "Explore ancient knowledge and spiritual practices for inner strength and wisdom.", categoryMediaBertuahTitle: "Empowered Media", categoryMediaBertuahDesc: "Discover heirlooms and items imbued with special energies for protection and luck.", categoryMediaHerbalTitle: "Herbal Media", categoryMediaHerbalDesc: "Natural remedies and herbal concoctions blessed for healing and wellness.", testimonial1: "The keris I got is truly authentic. The energy is amazing. Highly recommended for collectors!", testimonial2: "Tapak Pamungkas is a trusted source for spiritual items. Their collection is well-curated.", testimonial3: "I feel more connected to my Javanese roots through the items I purchased here. Thank you!", heroWelcome: "Welcome to", heroTitle: "Tapak Pamungkas", heroSubtitle: "Discover the Mystical Heritage of the Archipelago", heroButton: "Explore Collection", categoriesTitle: "Our Product Categories", recommendationsTitle: "Featured Products", testimonialsTitle: "What Our Community Says", viewAllProducts: "See All Products", ctaTitle: "Join Our Community", ctaSubtitle: "Get updates on new arrivals, exclusive offers, and stories from the Nusantara heritage.", ctaPlaceholder: "Enter your email address", ctaButton: "Subscribe" },
+    about: { title: "About Tapak Pamungkas", subtitle: "Guardians of Nusantara's Mystical Heritage", aboutUsTitle: "Our Story", aboutUsContent: "Tapak Pamungkas was born from a deep love for the rich spiritual and cultural tapestry of the Indonesian archipelago. We are dedicated to preserving and sharing the profound wisdom of our ancestors by offering authentic, high-quality mystical and traditional items.", visionTitle: "Our Vision", visionContent: "To be the most trusted global source for authentic Nusantara heritage, connecting the world with the spiritual wisdom of our ancestors.", missionTitle: "Our Mission", missionItem1: "Curate and provide authentic, high-quality spiritual items.", missionItem2: "Educate on the history and significance of our cultural heritage.", missionItem3: "Support local artisans and spiritual practitioners.", missionItem4: "Foster a community passionate about Nusantara's traditions." },
+    contact: { title: 'Connect With Us', subtitle: 'Follow our journey and get in touch through our social channels.' },
+    cart: { title: "Shopping Cart", empty: "Your cart is currently empty.", remove: "Remove", quantity: "Qty: {{count}}", summaryTitle: "Order Summary", subtotal: "Subtotal", shipping: "Shipping", shippingFree: "Free", total: "Total", checkoutButton: "Proceed to Checkout" },
+    allProducts: { title: "Our Collection", subtitle: "Explore our curated selection of mystical and cultural heirlooms.", noProducts: "No products found matching your criteria.", showingResultsFor: 'Showing results for: "{{query}}"', clearSearch: 'Clear Search' },
+    wishlist: { title: "My Wishlist", subtitle: "Your collection of saved treasures.", empty: "Your wishlist is empty.", startShopping: "Start Exploring" },
+    vouchers: { title: "Claim Your Vouchers", subtitle: "Special offers just for you. Claim them now and use them at checkout!", empty: "No vouchers are available at the moment. Please check back later.", claimButton: "Claim", claimedButton: "Claimed", storeWide: "For all products", productSpecific: "Only for: {{productName}}", expiresOn: "Expires on: {{date}}" },
+    login: { errorIncorrect: "Incorrect email or password.", errorAdminAccess: "You do not have permission to access the admin panel.", adminTitle: "Admin Access", title: "Welcome Back", adminSubtitle: "Please enter your administrator credentials.", subtitle: "Log in to continue your spiritual journey.", emailLabel: "Email Address", passwordLabel: "Password", loginButton: "Login", noAccount: "Don't have an account?", registerLink: "Sign up" },
+    register: { errorPasswordLength: "Password must be at least 6 characters long.", errorGeneral: "Registration failed. Please try again.", title: "Create an Account", subtitle: "Join our community and begin exploring.", nameLabel: "Full Name", emailLabel: "Email Address", passwordLabel: "Password", registerButton: "Sign Up", hasAccount: "Already have an account?", loginLink: "Log in" },
+    checkout: { guideTitle: "How to Complete Your Order", step1Title: "Fill Shipping Info", step1Desc: "Enter your complete delivery address and contact details", step2Title: "Apply Voucher (Optional)", step2Desc: "Enter your voucher code if you have one to get a discount", step3Title: "Choose Payment", step3Desc: "Select Bank Transfer or COD as your payment method", step4Title: "Place Order", step4Desc: "Review and confirm your order to complete the purchase", voucherErrorProductSpecific: "This voucher is not valid for the items in your cart.", voucherSuccess: "Voucher '{{code}}' applied successfully!", voucherError: "Invalid or expired voucher code.", alertFillShipping: "Please fill in all shipping details.", alertUploadProof: "Please upload proof of payment.", backToCart: "Back to Cart", title: "Checkout", shippingTitle: "Shipping Details", labelName: "Full Name", labelPhone: "Phone Number", labelAddress: "Full Address", labelCity: "City", labelPostalCode: "Postal Code", voucherTitle: "Voucher Code", voucherPlaceholder: "Enter voucher code", voucherApplyButton: "Apply", paymentTitle: "Payment Method", paymentBank: "Bank Transfer", paymentBankInstruction: "Please transfer to one of the following accounts:", paymentTotal: "Total to Pay", paymentUploadLabel: "Upload Transfer Proof", paymentCOD: "Cash on Delivery (COD)", discount: "Discount", confirmButton: "Place Order" },
+    orderConfirmation: { title: "Thank You!", subtitle: "Your order has been placed successfully.", orderNumberLabel: "Order Number:", nextSteps: "You will receive an email confirmation shortly with your order details.", backButton: "Back to Home" },
+    productDetail: { notFound: "Product not found.", backButton: "Back to Products", stockAvailable: "Stock Available", outOfStock: "Out of Stock", relatedProducts: "Related Products", recommendations: "You Might Also Like" },
+    orderHistory: { title: "My Order History", subtitle: "Track your past purchases and their status.", empty: "You have not placed any orders yet.", startShopping: "Start Shopping", colId: "Order ID", colDate: "Date", colTotal: "Total", colStatus: "Status", colActions: "Actions", viewDetails: "View Details" },
+    admin: { title: 'Admin Panel', modalCancel: 'Cancel', modalSave: 'Save Changes', deleteConfirm: 'Delete', modalEdit: 'Edit', modalAdd: 'Add New', deleteTitle: 'Confirm Deletion', deleteMessage: 'Are you sure you want to delete this item? This action cannot be undone.', nav: { dashboard: 'Dashboard', products: 'Products', orders: 'Orders', users: 'Users', vouchers: 'Vouchers', logout: 'Logout' }, dashboard: { title: 'Dashboard', period: 'Period', last7Days: 'Last 7 Days', allTime: 'All Time', totalRevenue: 'Total Revenue', totalOrders: 'Total Orders', totalUsers: 'Total Users', totalProducts: 'Total Products' }, products: { title: 'Manage Products', addProduct: 'Add Product', colName: 'Name', colPrice: 'Price', colStock: 'Stock', colActions: 'Actions', formName: 'Product Name', formDescription: 'Description', formPrice: 'Price (IDR)', formStock: 'Stock Quantity', formSelectCategory: 'Select Category', formImageUrls: 'Image URLs', formImageUrl: 'Image URL {{number}}' }, users: { title: 'Manage Users', addUser: 'Add User', colName: 'Name', colEmail: 'Email', colRole: 'Role', colActions: 'Actions', roleAdmin: 'Admin', roleCustomer: 'Customer', formName: 'Full Name', formEmail: 'Email Address' }, orders: { title: 'Manage Orders', colId: 'Order ID', colCustomer: 'Customer', colTotal: 'Total', colStatus: 'Status', colActions: 'Actions' }, vouchers: { title: 'Manage Vouchers', addVoucher: 'Add Voucher', colCode: 'Code', colDiscount: 'Discount', colExpiry: 'Expiry Date', colActions: 'Actions', formCode: 'Voucher Code', formDiscount: 'Discount (%)', formExpiry: 'Expiry Date' }, modalTitle: { product: 'Product', user: 'User', voucher: 'Voucher' } },
+    categories: { semua: "All", keilmuan: "Spiritual Science", mediabertuah: "Empowered Media", mediaherbal: "Herbal Media" },
+    productCard: { price: 'Price', added: 'Added', addToCart: 'Add to Cart' },
+    filters: { filtersTitle: "Filters", sortBy: "Sort By", default: "Default", priceLowHigh: "Price: Low to High", priceHighLow: "Price: High to Low", nameAZ: "Name: A-Z", nameZA: "Name: Z-A", newest: "Newest", priceRange: "Price Range", minPrice: "Min", maxPrice: "Max", apply: "Apply", resetFilters: "Reset Filters" },
+  },
+  id: {
+    header: { home: 'Beranda', products: 'Produk', about: 'Tentang Kami', contact: 'Kontak', login: 'Masuk', register: 'Daftar', myAccount: 'Akun Saya', logout: 'Keluar', wishlist: 'Wishlist', cart: 'Keranjang', searchPlaceholder: 'Cari produk...', vouchers: 'Voucher', orderHistory: 'Riwayat Pesanan' },
+    footer: { tagline: 'Melestarikan warisan leluhur nusantara dengan produk spiritual dan budaya yang otentik.', shopTitle: 'Toko', shopProducts: 'Semua Produk', shopAbout: 'Tentang Kami', shopContact: 'Hubungi Kami', helpTitle: 'Bantuan', helpPrivacy: 'Kebijakan Privasi', helpTerms: 'Syarat & Ketentuan', helpFAQ: 'FAQ', socialTitle: 'Ikuti Kami', socialTagline: 'Terhubung dengan kami di media sosial.', copyright: 'Hak Cipta Dilindungi' },
+    toasts: { adminAccessDenied: 'Akses admin diperlukan.', loginToAdd: 'Silakan masuk untuk menambahkan item ke keranjang.', itemAddedToCart: '{{name}} ditambahkan ke keranjang!', itemRemovedFromCart: '{{name}} dihapus dari keranjang.', loginToWishlist: 'Silakan masuk untuk menggunakan wishlist.', itemRemovedFromWishlist: 'Item dihapus dari wishlist.', itemAddedToWishlist: 'Item ditambahkan ke wishlist!', welcome: 'Selamat datang kembali, {{name}}!', loginFailed: 'Email atau kata sandi salah.', logoutSuccess: 'Anda berhasil keluar.', emailExists: 'Akun dengan email ini sudah ada.', registerSuccess: 'Pendaftaran berhasil! Selamat datang.', voucherClaimed: 'Voucher {{code}} berhasil diklaim!', loginToClaim: 'Silakan masuk untuk klaim voucher.' },
+    home: { categoryKeilmuanTitle: "Keilmuan", categoryKeilmuanDesc: "Jelahi ilmu kuno dan praktik spiritual untuk kekuatan dan kebijaksanaan batin.", categoryMediaBertuahTitle: "Media Bertuah", categoryMediaBertuahDesc: "Temukan pusaka dan benda yang diisi dengan energi khusus untuk perlindungan dan keberuntungan.", categoryMediaHerbalTitle: "Media Herbal", categoryMediaHerbalDesc: "Ramuan alami dan herbal yang telah didoakan untuk penyembuhan dan kesehatan.", testimonial1: "Keris yang saya dapatkan benar-benar asli. Energinya luar biasa. Sangat direkomendasikan untuk kolektor!", testimonial2: "Tapak Pamungkas adalah sumber terpercaya untuk barang-barang spiritual. Koleksinya terkurasi dengan baik.", testimonial3: "Saya merasa lebih terhubung dengan akar budaya Jawa saya melalui barang-barang yang saya beli di sini. Terima kasih!", heroWelcome: "Selamat Datang di", heroTitle: "Tapak Pamungkas", heroSubtitle: "Temukan Warisan Mistis Nusantara", heroButton: "Jelajahi Koleksi", categoriesTitle: "Kategori Produk Kami", recommendationsTitle: "Produk Unggulan", testimonialsTitle: "Kata Komunitas Kami", viewAllProducts: "Lihat semua produk", ctaTitle: "Bergabung dengan Komunitas Kami", ctaSubtitle: "Dapatkan info terbaru tentang produk baru, penawaran eksklusif, dan kisah warisan Nusantara.", ctaPlaceholder: "Masukkan alamat email Anda", ctaButton: "Berlangganan" },
+    about: { title: "Tentang Tapak Pamungkas", subtitle: "Penjaga Warisan Mistis Nusantara", aboutUsTitle: "Kisah Kami", aboutUsContent: "Tapak Pamungkas lahir dari kecintaan yang mendalam terhadap kekayaan spiritual dan budaya kepulauan Indonesia. Kami berdedikasi untuk melestarikan dan berbagi kearifan para leluhur dengan menawarkan barang-barang mistis dan tradisional yang otentik dan berkualitas tinggi.", visionTitle: "Visi Kami", visionContent: "Menjadi sumber global paling tepercaya untuk warisan asli Nusantara, menghubungkan dunia dengan kearifan spiritual para leluhur kita.", missionTitle: "Misi Kami", missionItem1: "Mengkurasi dan menyediakan barang-barang spiritual yang otentik dan berkualitas.", missionItem2: "Mendidik tentang sejarah dan signifikansi warisan budaya kita.", missionItem3: "Mendukung pengrajin lokal dan praktisi spiritual.", missionItem4: "Membina komunitas yang bersemangat tentang tradisi Nusantara." },
+    contact: { title: 'Terhubung Dengan Kami', subtitle: 'Ikuti perjalanan kami dan hubungi kami melalui saluran sosial kami.' },
+    cart: { title: "Keranjang Belanja", empty: "Keranjang Anda saat ini kosong.", remove: "Hapus", quantity: "Jml: {{count}}", summaryTitle: "Ringkasan Pesanan", subtotal: "Subtotal", shipping: "Pengiriman", shippingFree: "Gratis", total: "Total", checkoutButton: "Lanjut ke Checkout" },
+    allProducts: { title: "Koleksi Kami", subtitle: "Jelajahi pilihan pusaka mistis dan budaya kami yang terkurasi.", noProducts: "Tidak ada produk yang ditemukan sesuai kriteria Anda.", showingResultsFor: 'Menampilkan hasil untuk: "{{query}}"', clearSearch: 'Hapus Pencarian' },
+    wishlist: { title: "Wishlist Saya", subtitle: "Koleksi benda-benda berharga pilihan Anda.", empty: "Wishlist Anda kosong.", startShopping: "Mulai Berbelanja" },
+    vouchers: { title: "Klaim Voucher Anda", subtitle: "Penawaran spesial hanya untukmu. Klaim sekarang dan gunakan saat checkout!", empty: "Tidak ada voucher yang tersedia saat ini. Silakan cek kembali nanti.", claimButton: "Klaim", claimedButton: "Sudah Diklaim", storeWide: "Untuk semua produk", productSpecific: "Hanya untuk: {{productName}}", expiresOn: "Berakhir pada: {{date}}" },
+    login: { errorIncorrect: "Email atau kata sandi salah.", errorAdminAccess: "Anda tidak memiliki izin untuk mengakses panel admin.", adminTitle: "Akses Admin", title: "Selamat Datang Kembali", adminSubtitle: "Silakan masukkan kredensial administrator Anda.", subtitle: "Masuk untuk melanjutkan perjalanan spiritual Anda.", emailLabel: "Alamat Email", passwordLabel: "Kata Sandi", loginButton: "Masuk", noAccount: "Belum punya akun?", registerLink: "Daftar" },
+    register: { errorPasswordLength: "Kata sandi harus minimal 6 karakter.", errorGeneral: "Pendaftaran gagal. Silakan coba lagi.", title: "Buat Akun", subtitle: "Bergabunglah dengan komunitas kami dan mulailah menjelajah.", nameLabel: "Nama Lengkap", emailLabel: "Alamat Email", passwordLabel: "Kata Sandi", registerButton: "Daftar", hasAccount: "Sudah punya akun?", loginLink: "Masuk" },
+    checkout: { guideTitle: "Cara Menyelesaikan Pesanan", step1Title: "Isi Info Pengiriman", step1Desc: "Masukkan alamat pengiriman dan detail kontak lengkap Anda", step2Title: "Gunakan Voucher (Opsional)", step2Desc: "Masukkan kode voucher jika Anda punya untuk mendapat diskon", step3Title: "Pilih Pembayaran", step3Desc: "Pilih Transfer Bank atau COD sebagai metode pembayaran", step4Title: "Buat Pesanan", step4Desc: "Tinjau dan konfirmasi pesanan untuk menyelesaikan pembelian", voucherErrorProductSpecific: "Voucher ini tidak berlaku untuk produk di keranjang Anda.", voucherSuccess: "Voucher '{{code}}' berhasil digunakan!", voucherError: "Kode voucher tidak valid atau sudah kedaluwarsa.", alertFillShipping: "Harap isi semua detail pengiriman.", alertUploadProof: "Harap unggah bukti pembayaran.", backToCart: "Kembali ke Keranjang", title: "Checkout", shippingTitle: "Detail Pengiriman", labelName: "Nama Lengkap", labelPhone: "Nomor Telepon", labelAddress: "Alamat Lengkap", labelCity: "Kota", labelPostalCode: "Kode Pos", voucherTitle: "Kode Voucher", voucherPlaceholder: "Masukkan kode voucher", voucherApplyButton: "Gunakan", paymentTitle: "Metode Pembayaran", paymentBank: "Transfer Bank", paymentBankInstruction: "Silakan transfer ke salah satu rekening berikut:", paymentTotal: "Total Pembayaran", paymentUploadLabel: "Unggah Bukti Transfer", paymentCOD: "Bayar di Tempat (COD)", discount: "Diskon", confirmButton: "Buat Pesanan" },
+    orderConfirmation: { title: "Terima Kasih!", subtitle: "Pesanan Anda telah berhasil dibuat.", orderNumberLabel: "Nomor Pesanan:", nextSteps: "Anda akan segera menerima konfirmasi email beserta detail pesanan Anda.", backButton: "Kembali ke Beranda" },
+    productDetail: { notFound: "Produk tidak ditemukan.", backToCart: "Kembali ke Keranjang", backButton: "Kembali ke Produk", stockAvailable: "Stok Tersedia", outOfStock: "Stok Habis", relatedProducts: "Produk Terkait", recommendations: "Anda Mungkin Juga Suka" },
+    orderHistory: { title: "Riwayat Pesanan Saya", subtitle: "Lacak pembelian Anda sebelumnya dan statusnya.", empty: "Anda belum pernah melakukan pemesanan.", startShopping: "Mulai Belanja", colId: "ID Pesanan", colDate: "Tanggal", colTotal: "Total", colStatus: "Status", colActions: "Aksi", viewDetails: "Lihat Detail" },
+    admin: { title: 'Panel Admin', modalCancel: 'Batal', modalSave: 'Simpan Perubahan', deleteConfirm: 'Hapus', modalEdit: 'Ubah', modalAdd: 'Tambah Baru', deleteTitle: 'Konfirmasi Penghapusan', deleteMessage: 'Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan.', nav: { dashboard: 'Dasbor', products: 'Produk', orders: 'Pesanan', users: 'Pengguna', vouchers: 'Voucher', logout: 'Keluar' }, dashboard: { title: 'Dasbor', period: 'Periode', last7Days: '7 Hari Terakhir', allTime: 'Sepanjang Waktu', totalRevenue: 'Total Pendapatan', totalOrders: 'Total Pesanan', totalUsers: 'Total Pengguna', totalProducts: 'Total Produk' }, products: { title: 'Kelola Produk', addProduct: 'Tambah Produk', colName: 'Nama', colPrice: 'Harga', colStock: 'Stok', colActions: 'Aksi', formName: 'Nama Produk', formDescription: 'Deskripsi', formPrice: 'Harga (IDR)', formStock: 'Jumlah Stok', formSelectCategory: 'Pilih Kategori', formImageUrls: 'URL Gambar', formImageUrl: 'URL Gambar {{number}}' }, users: { title: 'Kelola Pengguna', addUser: 'Tambah Pengguna', colName: 'Nama', colEmail: 'Email', colRole: 'Peran', colActions: 'Aksi', roleAdmin: 'Admin', roleCustomer: 'Pelanggan', formName: 'Nama Lengkap', formEmail: 'Alamat Email' }, orders: { title: 'Kelola Pesanan', colId: 'ID Pesanan', colCustomer: 'Pelanggan', colTotal: 'Total', colStatus: 'Status', colActions: 'Aksi' }, vouchers: { title: 'Kelola Voucher', addVoucher: 'Tambah Voucher', colCode: 'Kode', colDiscount: 'Diskon', colExpiry: 'Tanggal Kedaluwarsa', colActions: 'Aksi', formCode: 'Kode Voucher', formDiscount: 'Diskon (%)', formExpiry: 'Tanggal Kedaluwarsa' }, modalTitle: { product: 'Produk', user: 'Pengguna', voucher: 'Voucher' } },
+    categories: { semua: "Semua", keilmuan: "Keilmuan", mediabertuah: "Media Bertuah", mediaherbal: "Media Herbal" },
+    productCard: { price: 'Harga', added: 'Ditambahkan', addToCart: 'Ke Keranjang' },
+    filters: { filtersTitle: "Filter", sortBy: "Urutkan Berdasarkan", default: "Default", priceLowHigh: "Harga: Rendah ke Tinggi", priceHighLow: "Harga: Tinggi ke Rendah", nameAZ: "Nama: A-Z", nameZA: "Nama: Z-A", newest: "Terbaru", priceRange: "Rentang Harga", minPrice: "Harga Min", maxPrice: "Harga Maks", apply: "Terapkan", resetFilters: "Atur Ulang Filter" },
+  }
+};
+
+
+type Locale = 'en' | 'id';
+
+interface LocaleContextType {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: string, params?: { [key: string]: string | number }) => string;
+}
+
+const defaultContextValue: LocaleContextType = {
+  locale: 'id',
+  setLocale: () => console.warn('setLocale called outside of a LocaleProvider'),
+  t: (key: string) => key,
+};
+
+export const LocaleContext = createContext<LocaleContextType>(defaultContextValue);
+
+const getNestedTranslation = (messages: TranslationMessages, key: string): string | undefined => {
+  const keys = key.split('.');
+  let result: any = messages;
+  for (const k of keys) {
+    result = result?.[k];
+    if (result === undefined) return undefined;
+  }
+  return typeof result === 'string' ? result : undefined;
+}
+
+export const LocaleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [locale, setLocale] = useState<Locale>('id');
+
+  const t = useCallback((key: string, params?: { [key: string]: string | number }) => {
+    const langMessages = translations[locale] || translations.id;
+    let message = getNestedTranslation(langMessages, key);
+
+    if (message === undefined) {
+      // Fallback to English if key not found in current locale
+      const fallbackMessages = translations.en;
+      message = getNestedTranslation(fallbackMessages, key);
+      if (message === undefined) {
+        console.warn(`Translation key "${key}" not found in locale "${locale}" or fallback "en".`);
+        return key;
+      }
+    }
+
+    if (params) {
+      Object.keys(params).forEach(pKey => {
+        message = message!.replace(`{{${pKey}}}`, String(params[pKey]));
+      });
+    }
+
+    return message;
+  }, [locale]);
+
+  const value = { locale, setLocale, t };
+
+  return (
+    <LocaleContext.Provider value={value}>
+      {children}
+    </LocaleContext.Provider>
+  );
+};

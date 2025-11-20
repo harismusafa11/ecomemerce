@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  password        String
+  isAdmin         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  orders          Order[]
+  cart            Cart?
+  wishlist        Wishlist?
+  claimedVouchers Voucher[]
+}
+
+model Product {
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String
+  price         Float
+  imageUrls     String[]
+  category      String
+  stock         Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  orderItems    OrderItem[]
+  vouchers      Voucher[]
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          Int
+  user            User        @relation(fields: [userId], references: [id])
+  total           Float
+  status          String      @default("Pending Payment")
+  orderDate       DateTime    @default(now())
+  paymentProofUrl String?
+  trackingNumber  String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+}
+
+model Wishlist {
+  id        Int            @id @default(autoincrement())
+  userId    Int            @unique
+  user      User           @relation(fields: [userId], references: [id])
+  items     WishlistItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model WishlistItem {
+  id         Int      @id @default(autoincrement())
+  wishlistId Int
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([wishlistId, productId])
+}
+
+model Voucher {
+  id                 Int      @id @default(autoincrement())
+  code               String   @unique
+  discountPercentage Float
+  startDate          DateTime
+  endDate            DateTime
+  productId          Int?
+  product            Product? @relation(fields: [productId], references: [id])
+  claimedBy          User[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
