@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "tsx server/index.ts",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && vite build"
+    "vercel-build": "prisma generate && vite build"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
