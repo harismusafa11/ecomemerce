@@ -30,6 +30,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/node": "^22.14.0",
+    "@vercel/node": "^3.0.21",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6"
   }
