@@ -278,6 +278,45 @@ const AppContent: React.FC = () => {
         }
     }, [currentUser, t, handleNavigate, wishlistItems]);
 
+    // --- ORDER/CHECKOUT LOGIC ---
+    const handlePlaceOrder = useCallback(async (orderDetails: any) => {
+        if (!currentUser) {
+            showToast(t('toasts.loginRequired'), 'error');
+            handleNavigate('login');
+            return;
+        }
+
+        try {
+            const orderItems = cartItems.map(item => ({
+                id: item.id,
+                productId: item.id,
+                quantity: item.quantity,
+                price: item.price,
+            }));
+
+            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            const order = await api.createOrder(currentUser.id, orderItems, total);
+
+            // Store order details for confirmation page
+            setLastOrderId(order.id);
+            setLastPaymentMethod(orderDetails.paymentMethod || 'Transfer Bank');
+            setLastOrderTotal(total);
+
+            // Clear cart after successful order
+            setCartItems([]);
+
+            // Navigate to confirmation page
+            handleNavigate('orderConfirmation');
+
+            showToast(t('toasts.orderPlaced'), 'success');
+        } catch (error) {
+            console.error('Order creation failed:', error);
+            showToast(t('toasts.orderFailed') || 'Failed to create order', 'error');
+        }
+    }, [currentUser, cartItems, t, handleNavigate]);
+
+
     // --- VOUCHER LOGIC ---
     const handleClaimVoucher = useCallback(async (voucherId: number) => {
         if (!currentUser) {
@@ -380,43 +419,6 @@ const AppContent: React.FC = () => {
             return null;
         }
     }, [t, handleNavigate]);
-
-    // --- ORDER PLACEMENT ---
-    const handlePlaceOrder = useCallback(async (orderDetails: any) => {
-        if (!currentUser) return;
-
-        // Calculate items map for API
-        // orderDetails might need to be adjusted based on what CheckoutPage passes
-        // Assuming cartItems is used here or passed in orderDetails
-
-        // We need to group cart items by ID to get quantity
-        const items = cartItems.map(item => ({
-            id: item.id,
-            quantity: item.quantity,
-            price: item.price
-        }));
-
-        const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-        try {
-            const order = await api.createOrder({
-                userId: currentUser.id,
-                items,
-                total
-            });
-            setLastOrderId(order.id);
-            setLastPaymentMethod(orderDetails.paymentMethod);
-            setLastOrderTotal(total);
-
-            // Clear cart in database and local state
-            await api.clearCart(currentUser.id);
-            setCartItems([]);
-
-            setCurrentPage('orderConfirmation');
-        } catch (error) {
-            showToast("Failed to place order", 'error');
-        }
-    }, [currentUser, cartItems]);
 
     // --- ADMIN ACCESS ---
     const adminClickCount = useRef(0);
