@@ -13,6 +13,10 @@
             "destination": "/api/cart"
         },
         {
+            "source": "/api/orders(.*)",
+            "destination": "/api/orders"
+        },
+        {
             "source": "/api/vouchers",
             "destination": "/api/vouchers"
         },
