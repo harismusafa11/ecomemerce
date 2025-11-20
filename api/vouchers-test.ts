@@ -1,17 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
 
+// Create Prisma client instance
 const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        console.log('Starting voucher query...');
+        console.log('[VOUCHERS] Starting query...');
+        console.log('[VOUCHERS] DATABASE_URL exists:', !!process.env.DATABASE_URL);
 
-        // Try simplest possible query
+        // Ultra-simple query with explicit select
         const vouchers = await prisma.voucher.findMany({
             select: {
                 id: true,
@@ -22,19 +33,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 productId: true,
                 createdAt: true,
                 updatedAt: true
-                // Explicitly exclude claimedBy relation
+            },
+            orderBy: {
+                createdAt: 'desc'
             }
         });
 
-        console.log('Vouchers found:', vouchers.length);
+        console.log('[VOUCHERS] Found:', vouchers.length, 'vouchers');
 
         return res.status(200).json(vouchers);
     } catch (error) {
-        console.error('Voucher query error:', error);
+        console.error('[VOUCHERS] Error:', error);
+
         return res.status(500).json({
             error: 'Failed to fetch vouchers',
             message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
+            type: error instanceof Error ? error.constructor.name : typeof error
         });
     } finally {
         await prisma.$disconnect();
