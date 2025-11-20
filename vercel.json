@@ -5,6 +5,10 @@
             "destination": "/api/login"
         },
         {
+            "source": "/api/register",
+            "destination": "/api/register"
+        },
+        {
             "source": "/api/vouchers",
             "destination": "/api/vouchers"
         },
