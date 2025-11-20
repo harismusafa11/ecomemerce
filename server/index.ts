@@ -165,15 +165,35 @@ app.delete('/api/products/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password required' });
+        }
+
+        console.log('Login attempt for:', email);
+
         const user = await prisma.user.findUnique({
             where: { email },
         });
-        if (!user || user.password !== password) { // In real app, use bcrypt
+
+        if (!user) {
+            console.log('User not found:', email);
             return res.status(401).json({ error: 'Invalid credentials' });
         }
+
+        if (user.password !== password) {
+            console.log('Password mismatch for:', email);
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        console.log('Login successful for:', email);
         res.json(user);
     } catch (error) {
-        res.status(500).json({ error: 'Login failed' });
+        console.error('Login error:', error);
+        res.status(500).json({
+            error: 'Login failed',
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 
@@ -441,12 +461,11 @@ app.delete('/api/wishlist/:userId/item/:productId', async (req, res) => {
 // --- VOUCHERS ---
 app.get('/api/vouchers', async (req, res) => {
     try {
-        const vouchers = await prisma.voucher.findMany({
-            include: { claimedBy: { select: { id: true } } } // Check who claimed it
-        });
+        const vouchers = await prisma.voucher.findMany();
         res.json(vouchers);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch vouchers' });
+        console.error('Vouchers fetch error:', error);
+        res.status(500).json({ error: 'Failed to fetch vouchers', details: error instanceof Error ? error.message : String(error) });
     }
 });
 
@@ -471,18 +490,24 @@ app.get('/api/vouchers/user/:userId', async (req, res) => {
     try {
         const userId = Number(req.params.userId);
 
-        // Get user with their claimed vouchers
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            include: {
-                claimedVouchers: true
+        // Get vouchers claimed by this user
+        const vouchers = await prisma.voucher.findMany({
+            where: {
+                claimedBy: {
+                    some: {
+                        id: userId
+                    }
+                }
             }
         });
 
-        res.json(user?.claimedVouchers || []);
+        res.json(vouchers);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to fetch user vouchers' });
+        console.error('User vouchers fetch error:', error);
+        res.status(500).json({
+            error: 'Failed to fetch user vouchers',
+            details: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 
