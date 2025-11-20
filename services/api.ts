@@ -123,7 +123,7 @@ export const api = {
 
     // Cart
     getCart: async (userId: number): Promise<any[]> => {
-        const response = await fetch(`${API_URL}/cart/${userId}`);
+        const response = await fetch(`${API_URL}/cart?userId=${userId}`);
         if (!response.ok) throw new Error('Failed to fetch cart');
         return response.json();
     },
@@ -139,7 +139,7 @@ export const api = {
     },
 
     removeFromCart: async (userId: number, productId: number): Promise<void> => {
-        const response = await fetch(`${API_URL}/cart/${userId}/item/${productId}`, {
+        const response = await fetch(`${API_URL}/cart?userId=${userId}&productId=${productId}`, {
             method: 'DELETE',
         });
         if (!response.ok) throw new Error('Failed to remove from cart');
