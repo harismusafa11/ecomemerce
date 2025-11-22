@@ -37,6 +37,10 @@
             "destination": "/api/index"
         },
         {
+            "source": "/googleb9714a73ff1213d2.html",
+            "destination": "/public/googleb9714a73ff1213d2.html"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
