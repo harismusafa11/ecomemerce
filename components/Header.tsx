@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Page, User } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -103,7 +103,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
         { page: 'contact', label: t('header.contact') },
     ];
 
-    const handleSearchSubmit = (e: React.FormEvent) => {
+    const handleSearchSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
             onSearchSubmit(searchQuery.trim());
@@ -112,7 +112,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
                 setIsMenuOpen(false);
             }
         }
-    };
+    }, [searchQuery, onSearchSubmit, isMenuOpen]);
 
     const NavItems = ({ isMobile = false }) => (
         <div className={`flex ${isMobile ? 'flex-col space-y-4 p-4' : 'items-center space-x-6'}`}>
@@ -276,4 +276,4 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
     );
 };
 
-export default memo(Header);
+export default Header;
