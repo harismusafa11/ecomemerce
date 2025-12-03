@@ -161,31 +161,19 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
                     <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
                         {/* Expandable Desktop Search Bar */}
                         <div ref={searchContainerRef} className="hidden lg:flex items-center justify-end">
-                            <AnimatePresence>
-                                {isSearchOpen ? (
-                                    <motion.div
-                                        key="search-bar"
-                                        initial={{ width: 0, opacity: 0 }}
-                                        animate={{ width: 240, opacity: 1 }}
-                                        exit={{ width: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                    >
-                                        <SearchForm />
-                                    </motion.div>
-                                ) : (
-                                    <motion.button
-                                        key="search-icon"
-                                        onClick={() => setIsSearchOpen(true)}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="p-2 text-brand-accent hover:text-white transition-colors"
-                                        aria-label={t('header.searchPlaceholder')}
-                                    >
-                                        <SearchIcon className="h-6 w-6" />
-                                    </motion.button>
-                                )}
-                            </AnimatePresence>
+                            {isSearchOpen ? (
+                                <div className="w-60 transition-all duration-300">
+                                    <SearchForm />
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="p-2 text-brand-accent hover:text-white transition-colors"
+                                    aria-label={t('header.searchPlaceholder')}
+                                >
+                                    <SearchIcon className="h-6 w-6" />
+                                </button>
+                            )}
                         </div>
 
 
