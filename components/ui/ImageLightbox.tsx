@@ -138,14 +138,14 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
 
                     {/* Image Container */}
                     <div
-                        className="relative w-full h-full flex items-center justify-center px-4 py-20 md:px-16 md:py-24"
+                        className="absolute inset-0 flex items-center justify-center p-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Loading Spinner */}
                         {imageLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div>
-                                <p className="absolute mt-32 text-white">Loading image...</p>
+                                <p className="mt-4 text-white">Loading image...</p>
                             </div>
                         )}
 
@@ -156,7 +156,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 <p className="text-xl">Failed to load image</p>
-                                <p className="text-sm text-gray-400 mt-2">URL: {images[currentIndex]}</p>
+                                <p className="text-sm text-gray-400 mt-2 px-4 text-center break-all">URL: {images[currentIndex]}</p>
                             </div>
                         )}
 
@@ -170,7 +170,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                             transition={{ duration: 0.3 }}
                             onLoad={handleImageLoad}
                             onError={handleImageError}
-                            className="w-auto h-auto max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl"
+                            className="max-w-[85vw] max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
                             style={{ display: imageError ? 'none' : 'block' }}
                         />
                     </div>
@@ -186,8 +186,8 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                                         setCurrentIndex(idx);
                                     }}
                                     className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
-                                            ? 'border-brand-gold scale-110'
-                                            : 'border-transparent hover:border-white/50'
+                                        ? 'border-brand-gold scale-110'
+                                        : 'border-transparent hover:border-white/50'
                                         }`}
                                 >
                                     <img
