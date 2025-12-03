@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Image Lightbox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-8">
+    <div class="max-w-2xl w-full">
+        <h1 class="text-3xl font-bold mb-6 text-center">Test Image Lightbox</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <p class="mb-4 text-gray-700">Click pada gambar di bawah untuk membuka lightbox:</p>
+            
+            <!-- Test Images -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="cursor-pointer hover:opacity-80 transition" onclick="openLightbox(0)">
+                    <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800" 
+                         alt="Product 1" 
+                         class="w-full h-64 object-cover rounded-lg shadow">
+                    <p class="text-center mt-2 text-sm text-gray-600">Image 1</p>
+                </div>
+                <div class="cursor-pointer hover:opacity-80 transition" onclick="openLightbox(1)">
+                    <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800" 
+                         alt="Product 2" 
+                         class="w-full h-64 object-cover rounded-lg shadow">
+                    <p class="text-center mt-2 text-sm text-gray-600">Image 2</p>
+                </div>
+                <div class="cursor-pointer hover:opacity-80 transition" onclick="openLightbox(2)">
+                    <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800" 
+                         alt="Product 3" 
+                         class="w-full h-64 object-cover rounded-lg shadow">
+                    <p class="text-center mt-2 text-sm text-gray-600">Image 3</p>
+                </div>
+                <div class="cursor-pointer hover:opacity-80 transition" onclick="openLightbox(3)">
+                    <img src="https://images.unsplash.com/photo-1560343090-f0409e92791a?w=800" 
+                         alt="Product 4" 
+                         class="w-full h-64 object-cover rounded-lg shadow">
+                    <p class="text-center mt-2 text-sm text-gray-600">Image 4</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="fixed inset-0 z-50 hidden bg-black/95 backdrop-blur-sm" onclick="closeLightbox()">
+        <!-- Close Button -->
+        <button onclick="closeLightbox()" class="absolute top-4 right-4 z-50 p-2 text-white hover:text-yellow-400 transition-colors bg-black/50 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <!-- Image Counter -->
+        <div id="counter" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/50 px-4 py-2 rounded-full text-white font-semibold">
+            1 / 4
+        </div>
+
+        <!-- Previous Button -->
+        <button onclick="event.stopPropagation(); previousImage()" class="absolute left-4 top-1/2 -translate-y-1/2 z-50 p-3 text-white hover:text-yellow-400 transition-colors bg-black/50 rounded-full hover:bg-black/70">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </button>
+
+        <!-- Next Button -->
+        <button onclick="event.stopPropagation(); nextImage()" class="absolute right-4 top-1/2 -translate-y-1/2 z-50 p-3 text-white hover:text-yellow-400 transition-colors bg-black/50 rounded-full hover:bg-black/70">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+
+        <!-- Image Container -->
+        <div class="w-full h-full flex items-center justify-center px-4 py-20 md:px-16 md:py-24" onclick="event.stopPropagation()">
+            <img id="lightboxImage" 
+                 src="" 
+                 alt="Lightbox Image" 
+                 class="w-auto h-auto max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl">
+        </div>
+
+        <!-- Thumbnails -->
+        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2 bg-black/50 p-3 rounded-full max-w-[90vw] overflow-x-auto scrollbar-hide">
+            <button onclick="event.stopPropagation(); openLightbox(0)" id="thumb-0" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-white/50 transition-all">
+                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200" alt="Thumb 1" class="w-full h-full object-cover">
+            </button>
+            <button onclick="event.stopPropagation(); openLightbox(1)" id="thumb-1" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-white/50 transition-all">
+                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200" alt="Thumb 2" class="w-full h-full object-cover">
+            </button>
+            <button onclick="event.stopPropagation(); openLightbox(2)" id="thumb-2" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-white/50 transition-all">
+                <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=200" alt="Thumb 3" class="w-full h-full object-cover">
+            </button>
+            <button onclick="event.stopPropagation(); openLightbox(3)" id="thumb-3" class="w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-white/50 transition-all">
+                <img src="https://images.unsplash.com/photo-1560343090-f0409e92791a?w=200" alt="Thumb 4" class="w-full h-full object-cover">
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const images = [
+            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=1600',
+            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1600',
+            'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=1600',
+            'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=1600'
+        ];
+        
+        let currentIndex = 0;
+
+        function openLightbox(index) {
+            currentIndex = index;
+            updateLightbox();
+            document.getElementById('lightbox').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+            document.body.style.overflow = 'unset';
+        }
+
+        function nextImage() {
+            currentIndex = (currentIndex + 1) % images.length;
+            updateLightbox();
+        }
+
+        function previousImage() {
+            currentIndex = (currentIndex - 1 + images.length) % images.length;
+            updateLightbox();
+        }
+
+        function updateLightbox() {
+            document.getElementById('lightboxImage').src = images[currentIndex];
+            document.getElementById('counter').textContent = `${currentIndex + 1} / ${images.length}`;
+            
+            // Update thumbnail borders
+            for (let i = 0; i < images.length; i++) {
+                const thumb = document.getElementById(`thumb-${i}`);
+                if (i === currentIndex) {
+                    thumb.classList.add('border-yellow-400', 'scale-110');
+                    thumb.classList.remove('border-transparent');
+                } else {
+                    thumb.classList.remove('border-yellow-400', 'scale-110');
+                    thumb.classList.add('border-transparent');
+                }
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('hidden')) {
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                } else if (e.key === 'ArrowLeft') {
+                    previousImage();
+                } else if (e.key === 'ArrowRight') {
+                    nextImage();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
