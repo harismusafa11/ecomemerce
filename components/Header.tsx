@@ -49,14 +49,15 @@ interface HeaderProps {
     onCartClick: () => void;
     onWishlistClick: () => void;
     onCartIconRef: (node: HTMLButtonElement | null) => void;
-    onSearch: (query: string) => void;
+    searchQuery: string;
+    onSearchQueryChange: (query: string) => void;
+    onSearchSubmit: (query: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNavigate, currentUser, onLogout, onCartClick, onWishlistClick, onCartIconRef, onSearch }) => {
+const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNavigate, currentUser, onLogout, onCartClick, onWishlistClick, onCartIconRef, searchQuery, onSearchQueryChange, onSearchSubmit }) => {
     const { t, locale, setLocale } = useTranslations();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -105,7 +106,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            onSearch(searchQuery.trim());
+            onSearchSubmit(searchQuery.trim());
             setIsSearchOpen(false); // Close search after submitting
             if (isMenuOpen) {
                 setIsMenuOpen(false);
@@ -127,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
                 placeholder={t('header.searchPlaceholder')}
                 className="w-full bg-brand-primary/50 border border-brand-accent/30 rounded-full py-2 pl-4 pr-10 text-white placeholder-brand-accent/70 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent transition-colors"
             />

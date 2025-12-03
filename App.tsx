@@ -193,10 +193,16 @@ const AppContent: React.FC = () => {
     }, [])
 
     // --- SEARCH LOGIC ---
-    const handleSearch = useCallback((query: string) => {
+    const handleSearchQueryChange = useCallback((query: string) => {
         setSearchQuery(query);
-        handleNavigate('allProducts');
-    }, [handleNavigate]);
+    }, []);
+
+    const handleSearchSubmit = useCallback((query: string) => {
+        setSearchQuery(query);
+        if (query.trim() && currentPage !== 'allProducts') {
+            handleNavigate('allProducts');
+        }
+    }, [currentPage, handleNavigate]);
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
@@ -535,7 +541,9 @@ const AppContent: React.FC = () => {
                 onCartClick={() => handleNavigate('cart')}
                 onWishlistClick={() => handleNavigate('wishlist')}
                 onCartIconRef={cartIconRefCallback}
-                onSearch={handleSearch}
+                searchQuery={searchQuery}
+                onSearchQueryChange={handleSearchQueryChange}
+                onSearchSubmit={handleSearchSubmit}
             />}
             <main className="flex-grow relative">
                 <Suspense fallback={<LoadingSpinner />}>
