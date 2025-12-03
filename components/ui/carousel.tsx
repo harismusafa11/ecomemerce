@@ -16,6 +16,7 @@ const ChevronRightIcon = () => (
 
 interface CarouselProps {
     imageUrls: string[];
+    onImageClick?: (index: number) => void;
 }
 
 const variants = {
@@ -40,7 +41,7 @@ const swipePower = (offset: number, velocity: number) => {
     return Math.abs(offset) * velocity;
 };
 
-const Carousel: React.FC<CarouselProps> = ({ imageUrls }) => {
+const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick }) => {
     const [[page, direction], setPage] = useState([0, 0]);
 
     const imageIndex = page % imageUrls.length;
@@ -55,7 +56,7 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls }) => {
     };
 
     return (
-        <div className="relative w-full h-full bg-brand-dark rounded-lg overflow-hidden flex items-center justify-center">
+        <div className="relative w-full h-full bg-brand-dark rounded-lg overflow-hidden flex items-center justify-center group">
             <AnimatePresence initial={false} custom={direction}>
                 <motion.img
                     key={page}
@@ -80,9 +81,19 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls }) => {
                             paginate(-1);
                         }
                     }}
-                    className="absolute w-full h-full object-cover"
+                    onClick={() => onImageClick?.(imageIndex)}
+                    className={`absolute w-full h-full object-cover ${onImageClick ? 'cursor-pointer' : ''}`}
                 />
             </AnimatePresence>
+
+            {/* Zoom Icon Indicator */}
+            {onImageClick && (
+                <div className="absolute top-4 right-4 z-10 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                </div>
+            )}
 
             {/* Next Button */}
             <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10">
@@ -112,9 +123,8 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls }) => {
                     <button
                         key={index}
                         onClick={() => goToSlide(index)}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                            index === imageIndex ? 'bg-white' : 'bg-white/50 hover:bg-white/75'
-                        }`}
+                        className={`w-2 h-2 rounded-full transition-colors ${index === imageIndex ? 'bg-white' : 'bg-white/50 hover:bg-white/75'
+                            }`}
                         aria-label={`Go to slide ${index + 1}`}
                     />
                 ))}

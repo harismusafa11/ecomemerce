@@ -3,6 +3,7 @@ import { Product, Voucher } from '../types';
 import Carousel from '../components/ui/carousel';
 import ProductCard from '../components/ProductCard';
 import VoucherCard from '../components/VoucherCard';
+import ImageLightbox from '../components/ui/ImageLightbox';
 import { useTranslations } from '../hooks/useTranslations';
 
 interface ProductDetailPageProps {
@@ -20,11 +21,14 @@ interface ProductDetailPageProps {
 
 const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, allProducts, onAddToCart, onProductClick, onBack, wishlistItems, onToggleWishlist, vouchers, claimedVouchers, onClaimVoucher }) => {
     const [isAdded, setIsAdded] = useState(false);
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslations();
 
     useEffect(() => {
         setIsAdded(false); // Reset button state when product changes
+        setIsLightboxOpen(false); // Close lightbox when product changes
     }, [product]);
 
     if (!product) {
@@ -45,6 +49,11 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, allProdu
             setIsAdded(true);
             setTimeout(() => setIsAdded(false), 2000); // Reset after 2 seconds
         }
+    };
+
+    const handleImageClick = (index: number) => {
+        setLightboxIndex(index);
+        setIsLightboxOpen(true);
     };
 
     const isInWishlist = wishlistItems.includes(product.id);
@@ -72,7 +81,7 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, allProdu
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 bg-white p-8 rounded-lg shadow-lg">
                     {/* Image Carousel */}
                     <div ref={imageContainerRef} className="aspect-square">
-                        <Carousel imageUrls={product.imageUrls} />
+                        <Carousel imageUrls={product.imageUrls} onImageClick={handleImageClick} />
                     </div>
 
                     {/* Product Details */}
@@ -179,6 +188,14 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, allProdu
                     </div>
                 </section>
             )}
+
+            {/* Image Lightbox */}
+            <ImageLightbox
+                images={product.imageUrls}
+                initialIndex={lightboxIndex}
+                isOpen={isLightboxOpen}
+                onClose={() => setIsLightboxOpen(false)}
+            />
         </div>
     );
 };
