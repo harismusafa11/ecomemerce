@@ -62,7 +62,6 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
     const userMenuRef = useRef<HTMLDivElement>(null);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     // Close user menu on click outside
     useEffect(() => {
@@ -95,15 +94,6 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
         }
     }, [isSearchOpen]);
 
-    // Cleanup debounce on unmount
-    useEffect(() => {
-        return () => {
-            if (searchDebounceRef.current) {
-                clearTimeout(searchDebounceRef.current);
-            }
-        };
-    }, []);
-
     const navLinks = [
         { page: 'home', label: t('header.home') },
         { page: 'allProducts', label: t('header.products') },
@@ -112,32 +102,14 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
         { page: 'contact', label: t('header.contact') },
     ];
 
-    // Real-time search with debounce
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const query = e.target.value;
-        setSearchQuery(query);
-
-        // Clear previous timeout
-        if (searchDebounceRef.current) {
-            clearTimeout(searchDebounceRef.current);
-        }
-
-        // Set new timeout for debounced search
-        searchDebounceRef.current = setTimeout(() => {
-            onSearch(query.trim());
-        }, 300); // 300ms delay after user stops typing
-    };
-
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Clear debounce and immediately trigger search
-        if (searchDebounceRef.current) {
-            clearTimeout(searchDebounceRef.current);
-        }
-        onSearch(searchQuery.trim());
-        setIsSearchOpen(false); // Close search after submitting
-        if (isMenuOpen) {
-            setIsMenuOpen(false);
+        if (searchQuery.trim()) {
+            onSearch(searchQuery.trim());
+            setIsSearchOpen(false); // Close search after submitting
+            if (isMenuOpen) {
+                setIsMenuOpen(false);
+            }
         }
     };
 
@@ -155,7 +127,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount, wishlistItemCount, onNav
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('header.searchPlaceholder')}
                 className="w-full bg-brand-primary/50 border border-brand-accent/30 rounded-full py-2 pl-4 pr-10 text-white placeholder-brand-accent/70 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent transition-colors"
             />
