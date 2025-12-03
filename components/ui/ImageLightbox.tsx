@@ -115,7 +115,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
 
                     {/* Image Container */}
                     <div
-                        className="relative w-full h-full flex items-center justify-center p-4 md:p-8"
+                        className="relative w-full h-full flex items-center justify-center px-4 py-20 md:px-16 md:py-24"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <motion.img
@@ -126,13 +126,13 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             transition={{ duration: 0.3 }}
-                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                            className="w-auto h-auto max-w-[90vw] max-h-[80vh] object-contain rounded-lg shadow-2xl"
                         />
                     </div>
 
                     {/* Thumbnail Navigation */}
                     {images.length > 1 && (
-                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2 bg-black/50 p-3 rounded-full max-w-full overflow-x-auto">
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex gap-2 bg-black/50 p-3 rounded-full max-w-[90vw] overflow-x-auto scrollbar-hide">
                             {images.map((img, idx) => (
                                 <button
                                     key={idx}
@@ -141,8 +141,8 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                                         setCurrentIndex(idx);
                                     }}
                                     className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
-                                            ? 'border-brand-gold scale-110'
-                                            : 'border-transparent hover:border-white/50'
+                                        ? 'border-brand-gold scale-110'
+                                        : 'border-transparent hover:border-white/50'
                                         }`}
                                 >
                                     <img
