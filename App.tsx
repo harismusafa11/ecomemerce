@@ -86,10 +86,70 @@ const AppContent: React.FC = () => {
         const fetchInitialData = async () => {
             try {
                 const productsData = await api.getProducts();
-                setProducts(productsData);
+                if (productsData && productsData.length > 0) {
+                    setProducts(productsData);
+                } else {
+                    setProducts([
+                        {
+                            id: 1,
+                            name: 'Mahaguru Mata Bathin',
+                            description: 'Keilmuan spiritual supranatural tingkat mahaguru untuk pembukaan mata bathin, kepekaan indera keenam, serta pembersihan energi negatif.',
+                            price: 500000,
+                            stock: 10,
+                            category: 'Keilmuan',
+                            imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                        },
+                        {
+                            id: 2,
+                            name: 'Batu Akik Bertuah Nusantara',
+                            description: 'Batu akikbertuah alami berenergi spiritual pengasihan, wibawa kepemimpinan, dan benteng gaib diri.',
+                            price: 750000,
+                            stock: 5,
+                            category: 'Media Bertuah',
+                            imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                        },
+                        {
+                            id: 3,
+                            name: 'Minyak Herbal Ruwatan Sakral',
+                            description: 'Minyak hikmah racikan herbal khusus untuk pembersihan sengkolo, aura negatif, dan ketenangan batin.',
+                            price: 300000,
+                            stock: 15,
+                            category: 'Media Herbal',
+                            imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                        }
+                    ]);
+                }
             } catch (error) {
-                console.error("Failed to fetch products", error);
-                showToast("Failed to load products", 'error');
+                console.error("Failed to fetch products from API, using fallback data", error);
+                setProducts([
+                    {
+                        id: 1,
+                        name: 'Mahaguru Mata Bathin',
+                        description: 'Keilmuan spiritual supranatural tingkat mahaguru untuk pembukaan mata bathin, kepekaan indera keenam, serta pembersihan energi negatif.',
+                        price: 500000,
+                        stock: 10,
+                        category: 'Keilmuan',
+                        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                    },
+                    {
+                        id: 2,
+                        name: 'Batu Akik Bertuah Nusantara',
+                        description: 'Batu akikbertuah alami berenergi spiritual pengasihan, wibawa kepemimpinan, dan benteng gaib diri.',
+                        price: 750000,
+                        stock: 5,
+                        category: 'Media Bertuah',
+                        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                    },
+                    {
+                        id: 3,
+                        name: 'Minyak Herbal Ruwatan Sakral',
+                        description: 'Minyak hikmah racikan herbal khusus untuk pembersihan sengkolo, aura negatif, dan ketenangan batin.',
+                        price: 300000,
+                        stock: 15,
+                        category: 'Media Herbal',
+                        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+                    }
+                ]);
             }
 
             try {

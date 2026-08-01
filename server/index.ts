@@ -95,14 +95,47 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+const FALLBACK_PRODUCTS = [
+    {
+        id: 1,
+        name: 'Mahaguru Mata Bathin',
+        description: 'Keilmuan spiritual supranatural tingkat mahaguru untuk pembukaan mata bathin, kepekaan indera keenam, serta pembersihan energi negatif.',
+        price: 500000,
+        stock: 10,
+        category: 'Keilmuan',
+        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+    },
+    {
+        id: 2,
+        name: 'Batu Akik Bertuah Nusantara',
+        description: 'Batu akikbertuah alami berenergi spiritual pengasihan, wibawa kepemimpinan, dan benteng gaib diri.',
+        price: 750000,
+        stock: 5,
+        category: 'Media Bertuah',
+        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+    },
+    {
+        id: 3,
+        name: 'Minyak Herbal Ruwatan Sakral',
+        description: 'Minyak hikmah racikan herbal khusus untuk pembersihan sengkolo, aura negatif, dan ketenangan batin.',
+        price: 300000,
+        stock: 15,
+        category: 'Media Herbal',
+        imageUrls: ['https://files.catbox.moe/z44d2s.png']
+    }
+];
+
 // --- PRODUCTS ---
 app.get('/api/products', async (req, res) => {
     try {
         const products = await prisma.product.findMany();
-        res.json(products);
+        if (products && products.length > 0) {
+            return res.json(products);
+        }
+        return res.json(FALLBACK_PRODUCTS);
     } catch (error) {
-        console.error('Error fetching products:', error);
-        res.status(500).json({ error: 'Failed to fetch products', details: error instanceof Error ? error.message : String(error) });
+        console.error('Error fetching products from DB, serving fallback:', error);
+        return res.json(FALLBACK_PRODUCTS);
     }
 });
 
