@@ -4,9 +4,6 @@ import { useTranslations } from '../hooks/useTranslations';
 import { ShoppingBag, Trash2, ArrowRight, ShieldCheck, Truck, MapPin, Calculator, Check, Loader2, Edit3, ListFilter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { wilayahService, ALL_34_PROVINCES, Province, Regency, District, Village } from '../services/wilayahService';
-import { ALL_514_REGENCIES } from '../services/wilayahData';
-import { ALL_EMSIFA_DISTRICTS } from '../services/districtsData';
-import { ALL_EMSIFA_VILLAGES } from '../services/villagesData';
 import { api } from '../services/api';
 
 interface CartItem extends Product {
@@ -35,15 +32,30 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveFromCart, onChec
     // Mode Input: 'dropdown' (Emsifa API 4-Tier) or 'manual'
     const [inputMode, setInputMode] = useState<'dropdown' | 'manual'>('dropdown');
 
-    // Emsifa API Wilayah State (Provinsi, Kota/Kab, Kecamatan, Kelurahan/Desa) - 100% Instant Synchronous Preloaded!
+    // Emsifa Wilayah State — data di-fetch dari static JSON (tidak di-bundle)
     const [provinces] = useState<Province[]>(ALL_34_PROVINCES);
-    const [regencies, setRegencies] = useState<Regency[]>(() => ALL_514_REGENCIES['33'] || []);
-    const [districts, setDistricts] = useState<District[]>(() => ALL_EMSIFA_DISTRICTS['3327'] || []);
-    const [villages, setVillages] = useState<Village[]>(() => ALL_EMSIFA_VILLAGES['3327010'] || []);
+    const [regencies, setRegencies] = useState<Regency[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
+    const [villages, setVillages] = useState<Village[]>([]);
 
-    const [loadingRegencies] = useState(false);
-    const [loadingDistricts] = useState(false);
-    const [loadingVillages] = useState(false);
+    const [loadingRegencies, setLoadingRegencies] = useState(false);
+    const [loadingDistricts, setLoadingDistricts] = useState(false);
+    const [loadingVillages, setLoadingVillages] = useState(false);
+
+    // Initial load on mount
+    useEffect(() => {
+        wilayahService.getRegencies('33').then(regs => {
+            setRegencies(regs);
+            if (regs.length > 0) {
+                wilayahService.getDistricts('3327').then(dists => {
+                    setDistricts(dists);
+                    if (dists.length > 0) {
+                        wilayahService.getVillages('3327010').then(vils => setVillages(vils));
+                    }
+                });
+            }
+        });
+    }, []);
 
     // Selected Emsifa IDs & Names
     const [selectedProvinceId, setSelectedProvinceId] = useState<string>(() => sessionStorage.getItem('cart_dest_prov_id') || '33');
@@ -91,27 +103,36 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveFromCart, onChec
     // Load Regencies when Province changes
     useEffect(() => {
         if (!selectedProvinceId) return;
-        const regs = ALL_514_REGENCIES[selectedProvinceId] || [];
-        setRegencies(regs);
+        setLoadingRegencies(true);
+        wilayahService.getRegencies(selectedProvinceId).then(regs => {
+            setRegencies(regs);
+            setLoadingRegencies(false);
+        });
     }, [selectedProvinceId]);
 
     // Load Districts when Regency changes
     useEffect(() => {
         if (!selectedRegencyId) return;
-        const dists = ALL_EMSIFA_DISTRICTS[selectedRegencyId] || [];
-        setDistricts(dists);
+        setLoadingDistricts(true);
+        wilayahService.getDistricts(selectedRegencyId).then(dists => {
+            setDistricts(dists);
+            setLoadingDistricts(false);
+        });
     }, [selectedRegencyId]);
 
-    // Load Villages when District changes (0ms Instant!)
+    // Load Villages when District changes
     useEffect(() => {
         if (!selectedDistrictId) return;
-        const vils = ALL_EMSIFA_VILLAGES[selectedDistrictId] || [];
-        setVillages(vils);
-        if (vils.length > 0 && (!selectedVillageId || !vils.some(v => v.id === selectedVillageId))) {
-            setSelectedVillageId(vils[0].id);
-            setSelectedVillageName(vils[0].name);
-            setManualVillage(vils[0].name);
-        }
+        setLoadingVillages(true);
+        wilayahService.getVillages(selectedDistrictId).then(vils => {
+            setVillages(vils);
+            setLoadingVillages(false);
+            if (vils.length > 0 && (!selectedVillageId || !vils.some(v => v.id === selectedVillageId))) {
+                setSelectedVillageId(vils[0].id);
+                setSelectedVillageName(vils[0].name);
+                setManualVillage(vils[0].name);
+            }
+        });
     }, [selectedDistrictId]);
 
     // Handle Province Selection
@@ -125,42 +146,39 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveFromCart, onChec
         sessionStorage.setItem('cart_dest_prov_id', provId);
         sessionStorage.setItem('cart_dest_prov_name', provName);
 
-        // Load regencies for selected province and auto-select first city
-        const regData = ALL_514_REGENCIES[provId] || [];
-        setRegencies(regData);
+        // Load regencies async dan auto-select first city
+        wilayahService.getRegencies(provId).then(async regData => {
+            setRegencies(regData);
+            if (regData.length > 0) {
+                const firstReg = regData[0];
+                setSelectedRegencyId(firstReg.id);
+                setSelectedRegencyName(firstReg.name);
+                setManualCity(firstReg.name);
+                sessionStorage.setItem('cart_dest_city_id', firstReg.id);
+                sessionStorage.setItem('cart_dest_city_name', firstReg.name);
 
-        if (regData.length > 0) {
-            const firstReg = regData[0];
-            setSelectedRegencyId(firstReg.id);
-            setSelectedRegencyName(firstReg.name);
-            setManualCity(firstReg.name);
-            sessionStorage.setItem('cart_dest_city_id', firstReg.id);
-            sessionStorage.setItem('cart_dest_city_name', firstReg.name);
+                const distData = await wilayahService.getDistricts(firstReg.id);
+                setDistricts(distData);
+                if (distData.length > 0) {
+                    const firstDist = distData[0];
+                    setSelectedDistrictId(firstDist.id);
+                    setSelectedDistrictName(firstDist.name);
+                    setManualDistrict(firstDist.name);
+                    sessionStorage.setItem('cart_dest_dist_id', firstDist.id);
+                    sessionStorage.setItem('cart_dest_dist_name', firstDist.name);
 
-            // Load districts for first city
-            const distData = ALL_EMSIFA_DISTRICTS[firstReg.id] || [];
-            setDistricts(distData);
-
-            if (distData.length > 0) {
-                const firstDist = distData[0];
-                setSelectedDistrictId(firstDist.id);
-                setSelectedDistrictName(firstDist.name);
-                setManualDistrict(firstDist.name);
-                sessionStorage.setItem('cart_dest_dist_id', firstDist.id);
-                sessionStorage.setItem('cart_dest_dist_name', firstDist.name);
-
-                // Load villages for first district
-                const vilData = ALL_EMSIFA_VILLAGES[firstDist.id] || [];
-                setVillages(vilData);
-                if (vilData.length > 0) {
-                    setSelectedVillageId(vilData[0].id);
-                    setSelectedVillageName(vilData[0].name);
-                    setManualVillage(vilData[0].name);
-                    sessionStorage.setItem('cart_dest_village_id', vilData[0].id);
-                    sessionStorage.setItem('cart_dest_village_name', vilData[0].name);
+                    const vilData = await wilayahService.getVillages(firstDist.id);
+                    setVillages(vilData);
+                    if (vilData.length > 0) {
+                        setSelectedVillageId(vilData[0].id);
+                        setSelectedVillageName(vilData[0].name);
+                        setManualVillage(vilData[0].name);
+                        sessionStorage.setItem('cart_dest_village_id', vilData[0].id);
+                        sessionStorage.setItem('cart_dest_village_name', vilData[0].name);
+                    }
                 }
             }
-        }
+        });
     };
 
     // Handle Regency Selection
@@ -174,29 +192,28 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveFromCart, onChec
         sessionStorage.setItem('cart_dest_city_id', regId);
         sessionStorage.setItem('cart_dest_city_name', regName);
 
-        // Load districts for selected regency and auto-select first district
-        const distData = ALL_EMSIFA_DISTRICTS[regId] || [];
-        setDistricts(distData);
+        // Load districts async dan auto-select first district
+        wilayahService.getDistricts(regId).then(async distData => {
+            setDistricts(distData);
+            if (distData.length > 0) {
+                const firstDist = distData[0];
+                setSelectedDistrictId(firstDist.id);
+                setSelectedDistrictName(firstDist.name);
+                setManualDistrict(firstDist.name);
+                sessionStorage.setItem('cart_dest_dist_id', firstDist.id);
+                sessionStorage.setItem('cart_dest_dist_name', firstDist.name);
 
-        if (distData.length > 0) {
-            const firstDist = distData[0];
-            setSelectedDistrictId(firstDist.id);
-            setSelectedDistrictName(firstDist.name);
-            setManualDistrict(firstDist.name);
-            sessionStorage.setItem('cart_dest_dist_id', firstDist.id);
-            sessionStorage.setItem('cart_dest_dist_name', firstDist.name);
-
-            // Load villages for first district
-            const vilData = ALL_EMSIFA_VILLAGES[firstDist.id] || [];
-            setVillages(vilData);
-            if (vilData.length > 0) {
-                setSelectedVillageId(vilData[0].id);
-                setSelectedVillageName(vilData[0].name);
-                setManualVillage(vilData[0].name);
-                sessionStorage.setItem('cart_dest_village_id', vilData[0].id);
-                sessionStorage.setItem('cart_dest_village_name', vilData[0].name);
+                const vilData = await wilayahService.getVillages(firstDist.id);
+                setVillages(vilData);
+                if (vilData.length > 0) {
+                    setSelectedVillageId(vilData[0].id);
+                    setSelectedVillageName(vilData[0].name);
+                    setManualVillage(vilData[0].name);
+                    sessionStorage.setItem('cart_dest_village_id', vilData[0].id);
+                    sessionStorage.setItem('cart_dest_village_name', vilData[0].name);
+                }
             }
-        }
+        });
     };
 
     // Handle District Selection
@@ -210,17 +227,18 @@ const CartPage: React.FC<CartPageProps> = ({ cartItems, onRemoveFromCart, onChec
         sessionStorage.setItem('cart_dest_dist_id', distId);
         sessionStorage.setItem('cart_dest_dist_name', distName);
 
-        // Load villages for selected district and auto-select first village
-        const vilData = ALL_EMSIFA_VILLAGES[distId] || [];
-        setVillages(vilData);
-        if (vilData.length > 0) {
-            const firstVil = vilData[0];
-            setSelectedVillageId(firstVil.id);
-            setSelectedVillageName(firstVil.name);
-            setManualVillage(firstVil.name);
-            sessionStorage.setItem('cart_dest_village_id', firstVil.id);
-            sessionStorage.setItem('cart_dest_village_name', firstVil.name);
-        }
+        // Load villages async dan auto-select first village
+        wilayahService.getVillages(distId).then(vilData => {
+            setVillages(vilData);
+            if (vilData.length > 0) {
+                const firstVil = vilData[0];
+                setSelectedVillageId(firstVil.id);
+                setSelectedVillageName(firstVil.name);
+                setManualVillage(firstVil.name);
+                sessionStorage.setItem('cart_dest_village_id', firstVil.id);
+                sessionStorage.setItem('cart_dest_village_name', firstVil.name);
+            }
+        });
     };
 
     // Handle Village Selection
