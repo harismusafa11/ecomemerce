@@ -44,3 +44,8 @@ Thumbs.db
 
 .vercel
 graphify-out/
+
+# Large data files — served as static JSON from public/data/
+services/villagesData.ts
+services/districtsData.ts
+services/wilayahData.ts
