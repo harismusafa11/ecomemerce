@@ -35,21 +35,25 @@ export interface SEOProps {
   jsonLd?: object;
 }
 
+export const SITE_URL = 'https://tapakpamungkas.my.id';
+export const SITE_NAME = 'Tapak Pamungkas';
+export const SITE_LOGO = 'https://files.catbox.moe/z44d2s.png';
+export const DEFAULT_KEYWORDS = 'Tapak Pamungkas, keris pusaka, benda bertuah, azimat bertuah, media hikmah, spiritual nusantara, pemaharan keris, keris sepuh, ruwatan, kebatinan, keilmuan hikmah, piranti bertuah, pusaka nusantara, supranatural, khodam';
+
 /**
- * Dynamically update document title, meta tags, OpenGraph, and Schema.org JSON-LD for top-tier SEO
+ * Dynamically update document title, meta tags, OpenGraph, Twitter, Canonical, and Schema.org JSON-LD for top-tier SEO
  */
 export function updateSEO({
   title,
   description,
-  image = 'https://files.catbox.moe/z44d2s.png',
-  keywords = 'Tapak Pamungkas, keris pusaka, benda bertuah, media bertuah, spiritual nusantara, herbal ruwatan',
+  image = SITE_LOGO,
+  keywords = DEFAULT_KEYWORDS,
   url = window.location.href,
   type = 'website',
   jsonLd
 }: SEOProps) {
   // Update Document Title
-  const siteName = 'Tapak Pamungkas';
-  const fullTitle = title.includes(siteName) ? title : `${title} | ${siteName}`;
+  const fullTitle = title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
   document.title = fullTitle;
 
   // Helper to set or create meta tag
@@ -63,21 +67,38 @@ export function updateSEO({
     element.setAttribute('content', contentVal);
   };
 
+  // Helper to set canonical link
+  const setCanonical = (canonicalUrl: string) => {
+    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
+    }
+    link.setAttribute('href', canonicalUrl);
+  };
+
   // Standard Meta Tags
   setMetaTag('meta[name="description"]', 'name', 'description', description);
   setMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
+
+  // Canonical URL (always pointing to tapakpamungkas.my.id)
+  setCanonical(url.startsWith('http') ? url : `${SITE_URL}${url}`);
 
   // Open Graph Meta Tags
   setMetaTag('meta[property="og:title"]', 'property', 'og:title', fullTitle);
   setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
   setMetaTag('meta[property="og:image"]', 'property', 'og:image', image);
-  setMetaTag('meta[property="og:url"]', 'property', 'og:url', url);
+  setMetaTag('meta[property="og:url"]', 'property', 'og:url', url.startsWith('http') ? url : `${SITE_URL}${url}`);
   setMetaTag('meta[property="og:type"]', 'property', 'og:type', type);
+  setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', SITE_NAME);
+  setMetaTag('meta[property="og:locale"]', 'property', 'og:locale', 'id_ID');
 
   // Twitter Meta Tags
-  setMetaTag('meta[property="twitter:title"]', 'property', 'twitter:title', fullTitle);
-  setMetaTag('meta[property="twitter:description"]', 'property', 'twitter:description', description);
-  setMetaTag('meta[property="twitter:image"]', 'property', 'twitter:image', image);
+  setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
+  setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
+  setMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', image);
+  setMetaTag('meta[name="twitter:url"]', 'name', 'twitter:url', url.startsWith('http') ? url : `${SITE_URL}${url}`);
 
   // Schema.org JSON-LD Structured Data
   let scriptTag = document.getElementById('json-ld-schema') as HTMLScriptElement | null;
@@ -99,7 +120,7 @@ export function updateSEO({
  */
 export function generateProductSchema(product: Product) {
   const productSlug = getProductSlug(product);
-  const canonicalUrl = `${window.location.origin}/#/produk/${productSlug}`;
+  const canonicalUrl = `${SITE_URL}/#/produk/${productSlug}`;
 
   const imageObjects = (product.imageUrls && product.imageUrls.length > 0
     ? product.imageUrls
