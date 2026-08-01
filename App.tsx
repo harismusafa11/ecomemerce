@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 
 import { Page, Product, User, Order, Voucher, CartItem } from './types';
 import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { LocaleProvider } from './context/LocaleContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { useTranslations } from './hooks/useTranslations';
 import { api } from './services/api';
+import { getProductSlug, updateSEO, generateProductSchema } from './lib/seo';
 
 // Import Components
 import Header from './components/Header';
@@ -170,10 +172,120 @@ const AppContent: React.FC = () => {
         }
     }, []);
 
-    // --- NAVIGATION ---
-    const handleNavigate = useCallback((page: Page) => {
+    // --- PAGE SLUGS & HASH ROUTING ---
+    const PAGE_TO_HASH: Record<Page, string> = {
+        home: '#/',
+        allProducts: '#/katalog',
+        about: '#/tentang-kami',
+        contact: '#/kontak',
+        cart: '#/keranjang',
+        checkout: '#/checkout',
+        wishlist: '#/wishlist',
+        vouchers: '#/kupon',
+        orderHistory: '#/riwayat-pesanan',
+        profile: '#/profil',
+        login: '#/masuk',
+        register: '#/daftar',
+        adminLogin: '#/admin-login',
+        adminPanel: '#/admin',
+        orderConfirmation: '#/konfirmasi-pesanan',
+        product: '#/produk',
+    };
+
+    const HASH_TO_PAGE: Record<string, Page> = {
+        '#/': 'home',
+        '#': 'home',
+        '': 'home',
+        '#/katalog': 'allProducts',
+        '#/tentang-kami': 'about',
+        '#/kontak': 'contact',
+        '#/keranjang': 'cart',
+        '#/checkout': 'checkout',
+        '#/wishlist': 'wishlist',
+        '#/kupon': 'vouchers',
+        '#/riwayat-pesanan': 'orderHistory',
+        '#/profil': 'profile',
+        '#/masuk': 'login',
+        '#/daftar': 'register',
+        '#/admin-login': 'adminLogin',
+        '#/admin': 'adminPanel',
+        '#/konfirmasi-pesanan': 'orderConfirmation',
+    };
+
+    // --- NAVIGATION WITH SLUG & HASH UPDATES ---
+    const handleNavigate = useCallback((page: Page, product?: Product) => {
         setCurrentPage(page);
+        if (page === 'product' && product) {
+            setSelectedProduct(product);
+            const slug = getProductSlug(product);
+            window.location.hash = `#/produk/${slug}`;
+        } else {
+            const hash = PAGE_TO_HASH[page] || '#/';
+            window.location.hash = hash;
+        }
     }, []);
+
+    // Listen to URL Hash changes for slug routing & deep linking
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash || '#/';
+            if (hash.startsWith('#/produk/')) {
+                const slugParam = hash.replace('#/produk/', '');
+                if (products.length > 0) {
+                    const matched = products.find(p => getProductSlug(p) === slugParam || p.id === Number(slugParam));
+                    if (matched) {
+                        setSelectedProduct(matched);
+                        setCurrentPage('product');
+                        return;
+                    }
+                }
+            } else if (HASH_TO_PAGE[hash]) {
+                setCurrentPage(HASH_TO_PAGE[hash]);
+            }
+        };
+
+        handleHashChange();
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [products]);
+
+    // DYNAMIC SEO & SCHEMA.ORG META UPDATES
+    useEffect(() => {
+        if (currentPage === 'product' && selectedProduct) {
+            updateSEO({
+                title: `${selectedProduct.name} - Mahar & Detail Pusaka`,
+                description: `${selectedProduct.name}: ${selectedProduct.description.slice(0, 150)}...`,
+                image: selectedProduct.imageUrls[0],
+                type: 'product',
+                jsonLd: generateProductSchema(selectedProduct)
+            });
+        } else if (currentPage === 'allProducts') {
+            updateSEO({
+                title: 'Katalog Produk & Pusaka Bertuah - Tapak Pamungkas',
+                description: 'Jelajahi seluruh keris pusaka sepuh, azimat bertuah, media spiritual, dan jamu herbal nusantara Tapak Pamungkas.'
+            });
+        } else if (currentPage === 'about') {
+            updateSEO({
+                title: 'Tentang Kami - Tapak Pamungkas',
+                description: 'Pusat Warisan Budaya & Benda Bertuah Nusantara. Melayani pemaharan pusaka, sarana spiritual, dan keilmuan.'
+            });
+        } else if (currentPage === 'contact') {
+            updateSEO({
+                title: 'Kontak & Konsultasi - Tapak Pamungkas',
+                description: 'Hubungi admin & pengasuh Tapak Pamungkas untuk konsultasi spiritual atau pemaharan pusaka.'
+            });
+        } else if (currentPage === 'vouchers') {
+            updateSEO({
+                title: 'Kupon Diskon Pemaharan - Tapak Pamungkas',
+                description: 'Klaim kupon promo potongan nilai mahar khusus untuk pemaharan piranti & pusaka pilihan.'
+            });
+        } else if (currentPage === 'home') {
+            updateSEO({
+                title: 'Tapak Pamungkas - Pusat Benda Bertuah & Keris Pusaka Nusantara',
+                description: 'Pusat Benda Bertuah, Keris Pusaka, Layanan Spiritual & Herbal Nusantara.'
+            });
+        }
+    }, [currentPage, selectedProduct]);
 
     useEffect(() => {
         if (currentPage === 'adminPanel' && currentUser && currentUser.email !== ADMIN_EMAIL) {
@@ -183,14 +295,13 @@ const AppContent: React.FC = () => {
     }, [currentPage, currentUser, t, handleNavigate]);
 
     const handleProductClick = useCallback((product: Product) => {
-        setSelectedProduct(product);
-        setCurrentPage('product');
-    }, []);
+        handleNavigate('product', product);
+    }, [handleNavigate]);
 
     const handleBackToProducts = useCallback(() => {
         setSelectedProduct(null);
-        setCurrentPage('allProducts');
-    }, [])
+        handleNavigate('allProducts');
+    }, [handleNavigate]);
 
     // --- SEARCH LOGIC ---
     const handleSearchQueryChange = useCallback((query: string) => {
@@ -293,32 +404,64 @@ const AppContent: React.FC = () => {
         }
 
         try {
-            const orderItems = cartItems.map(item => ({
+            const aggregatedMap = new Map<number, any>();
+            cartItems.forEach(item => {
+                const qty = item.quantity || 1;
+                if (aggregatedMap.has(item.id)) {
+                    const existing = aggregatedMap.get(item.id);
+                    existing.quantity += qty;
+                } else {
+                    aggregatedMap.set(item.id, { ...item, quantity: qty });
+                }
+            });
+
+            const aggregatedList = Array.from(aggregatedMap.values());
+            const orderItems = aggregatedList.map(item => ({
                 id: item.id,
                 productId: item.id,
                 quantity: item.quantity,
                 price: item.price,
             }));
 
-            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const subtotal = aggregatedList.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const discountAmount = orderDetails?.discountAmount || 0;
+            const shippingCost = orderDetails?.shippingCost || 0;
+            const finalTotal = Math.max(0, subtotal - discountAmount + shippingCost);
 
-            const order = await api.createOrder(currentUser.id, orderItems, total);
+            // Pass shipping details to PostgreSQL Database
+            const order = await api.createOrder({
+                userId: currentUser.id,
+                items: orderItems,
+                total: finalTotal,
+                shippingCost: shippingCost,
+                shippingCourier: orderDetails?.shippingCourier || sessionStorage.getItem('cart_shipping_courier') || undefined,
+                province: orderDetails?.province || sessionStorage.getItem('cart_dest_prov_name') || undefined,
+                city: orderDetails?.city || sessionStorage.getItem('cart_dest_city_name') || undefined,
+                district: orderDetails?.district || sessionStorage.getItem('cart_dest_dist_name') || undefined,
+                village: orderDetails?.village || sessionStorage.getItem('cart_dest_village_name') || undefined,
+                fullAddress: orderDetails?.fullAddress || undefined,
+            });
 
             // Store order details for confirmation page
-            setLastOrderId(order.id);
-            setLastPaymentMethod(orderDetails.paymentMethod || 'Transfer Bank');
-            setLastOrderTotal(total);
+            const orderIdStr = String(order.id);
+            setLastOrderId(orderIdStr);
+            setLastPaymentMethod(orderDetails?.paymentMethod || 'bank');
+            setLastOrderTotal(finalTotal);
 
-            // Clear cart after successful order
+            // Clear remote cart & local state
+            try {
+                await api.clearCart(currentUser.id);
+            } catch (err) {
+                console.error('Remote cart clear failed:', err);
+            }
             setCartItems([]);
 
             // Navigate to confirmation page
             handleNavigate('orderConfirmation');
-
-            showToast(t('toasts.orderPlaced'), 'success');
+            showToast(t('toasts.orderPlaced') || 'Pesanan berhasil dibuat!', 'success');
         } catch (error) {
             console.error('Order creation failed:', error);
-            showToast(t('toasts.orderFailed') || 'Failed to create order', 'error');
+            showToast(t('toasts.orderFailed') || 'Gagal membuat pesanan', 'error');
         }
     }, [currentUser, cartItems, t, handleNavigate]);
 
@@ -544,6 +687,8 @@ const AppContent: React.FC = () => {
                 searchQuery={searchQuery}
                 onSearchQueryChange={handleSearchQueryChange}
                 onSearchSubmit={handleSearchSubmit}
+                products={products}
+                onProductClick={handleProductClick}
             />}
             <main className="flex-grow relative">
                 <Suspense fallback={<LoadingSpinner />}>
@@ -609,9 +754,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
     return (
-        <LocaleProvider>
-            <AppContent />
-        </LocaleProvider>
+        <ThemeProvider>
+            <LocaleProvider>
+                <AppContent />
+            </LocaleProvider>
+        </ThemeProvider>
     )
 }
 

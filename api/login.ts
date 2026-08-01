@@ -1,13 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
+import { setSecurityHeaders, verifyPassword, sanitizeUser, isValidEmail, safeErrorResponse } from '../lib/security';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setSecurityHeaders(res);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -18,19 +16,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body || {};
 
-        console.log('[LOGIN] Attempt for:', email);
-
-        // Validation
-        if (!email || !password) {
-            console.log('[LOGIN] Missing credentials');
-            return res.status(400).json({ error: 'Email and password required' });
+        if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+            return safeErrorResponse(res, 400, 'Email dan password wajib diisi');
         }
 
-        // Find user
+        const trimmedEmail = email.trim().toLowerCase();
+
+        if (!isValidEmail(trimmedEmail)) {
+            return safeErrorResponse(res, 400, 'Format email tidak valid');
+        }
+
         const user = await prisma.user.findUnique({
-            where: { email },
+            where: { email: trimmedEmail },
             select: {
                 id: true,
                 name: true,
@@ -39,34 +38,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 isAdmin: true,
                 createdAt: true,
                 updatedAt: true
-                // Exclude relations
             }
         });
 
-        if (!user) {
-            console.log('[LOGIN] User not found:', email);
-            return res.status(401).json({ error: 'Invalid credentials' });
+        if (!user || !user.password) {
+            return safeErrorResponse(res, 401, 'Email atau password salah');
         }
 
-        // Check password (in production, use bcrypt!)
-        if (user.password !== password) {
-            console.log('[LOGIN] Password mismatch for:', email);
-            return res.status(401).json({ error: 'Invalid credentials' });
+        const isPasswordValid = verifyPassword(password, user.password);
+        if (!isPasswordValid) {
+            return safeErrorResponse(res, 401, 'Email atau password salah');
         }
 
-        console.log('[LOGIN] Success for:', email, 'isAdmin:', user.isAdmin);
-
-        // Return user data
-        return res.status(200).json(user);
+        // Return sanitized user (without password)
+        const safeUser = sanitizeUser(user);
+        return res.status(200).json(safeUser);
 
     } catch (error) {
-        console.error('[LOGIN] Error:', error);
-
-        return res.status(500).json({
-            error: 'Login failed',
-            message: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
+        return safeErrorResponse(res, 500, 'Gagal melakukan login', error);
     } finally {
         await prisma.$disconnect();
     }

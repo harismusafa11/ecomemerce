@@ -1,43 +1,33 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
+import { setSecurityHeaders, safeErrorResponse } from '../lib/security';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    setSecurityHeaders(res);
 
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
     try {
-        // GET /api/products - Get all products
-        // GET /api/products?id=X - Get single product
+        // GET /api/products - Get all products or single product
         if (req.method === 'GET') {
             const productId = req.query.id ? Number(req.query.id) : null;
 
-            if (productId) {
-                console.log('[PRODUCTS] Fetching product:', productId);
+            if (productId && !isNaN(productId)) {
                 const product = await prisma.product.findUnique({
                     where: { id: productId }
                 });
 
                 if (!product) {
-                    return res.status(404).json({ error: 'Product not found' });
+                    return safeErrorResponse(res, 404, 'Produk tidak ditemukan');
                 }
 
                 return res.status(200).json(product);
             }
 
-            console.log('[PRODUCTS] Fetching all products');
             const products = await prisma.product.findMany({
                 orderBy: { createdAt: 'desc' }
             });
@@ -46,53 +36,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // POST /api/products - Create new product
         if (req.method === 'POST') {
-            const { name, description, price, imageUrls, category, stock } = req.body;
+            const { name, description, price, imageUrls, category, stock } = req.body || {};
 
-            console.log('[PRODUCTS] Creating product:', name);
+            if (!name || price === undefined || price === null || isNaN(Number(price))) {
+                return safeErrorResponse(res, 400, 'Nama produk dan harga yang valid wajib diisi');
+            }
 
-            if (!name || !price) {
-                return res.status(400).json({ error: 'Name and price are required' });
+            const numPrice = Number(price);
+            if (numPrice < 0) {
+                return safeErrorResponse(res, 400, 'Harga produk tidak boleh negatif');
             }
 
             const product = await prisma.product.create({
                 data: {
-                    name,
-                    description: description || '',
-                    price: Number(price),
-                    imageUrls: imageUrls || [],
-                    category: category || 'Semua',
-                    stock: Number(stock) || 0,
+                    name: String(name).trim(),
+                    description: description ? String(description).trim() : '',
+                    price: numPrice,
+                    imageUrls: Array.isArray(imageUrls) ? imageUrls : [],
+                    category: category ? String(category).trim() : 'Semua',
+                    stock: stock !== undefined && !isNaN(Number(stock)) ? Math.max(0, Number(stock)) : 10,
                 },
             });
 
-            console.log('[PRODUCTS] Product created:', product.id);
             return res.status(201).json(product);
         }
 
         // PUT /api/products?id=X - Update product
         if (req.method === 'PUT') {
             const productId = req.query.id ? Number(req.query.id) : null;
-            const { name, description, price, imageUrls, category, stock } = req.body;
+            const { name, description, price, imageUrls, category, stock } = req.body || {};
 
-            if (!productId) {
-                return res.status(400).json({ error: 'Product ID required' });
+            if (!productId || isNaN(productId)) {
+                return safeErrorResponse(res, 400, 'ID Produk wajib diisi');
             }
 
-            console.log('[PRODUCTS] Updating product:', productId);
+            const numPrice = price !== undefined ? Number(price) : undefined;
+            if (numPrice !== undefined && (isNaN(numPrice) || numPrice < 0)) {
+                return safeErrorResponse(res, 400, 'Harga produk tidak valid');
+            }
 
             const product = await prisma.product.update({
                 where: { id: productId },
                 data: {
-                    name: name || undefined,
-                    description: description !== undefined ? description : undefined,
-                    price: price ? Number(price) : undefined,
-                    imageUrls: imageUrls || undefined,
-                    category: category || undefined,
-                    stock: stock !== undefined ? Number(stock) : undefined,
+                    name: name ? String(name).trim() : undefined,
+                    description: description !== undefined ? String(description).trim() : undefined,
+                    price: numPrice,
+                    imageUrls: Array.isArray(imageUrls) ? imageUrls : undefined,
+                    category: category ? String(category).trim() : undefined,
+                    stock: stock !== undefined && !isNaN(Number(stock)) ? Math.max(0, Number(stock)) : undefined,
                 },
             });
 
-            console.log('[PRODUCTS] Product updated:', product.id);
             return res.status(200).json(product);
         }
 
@@ -100,28 +94,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method === 'DELETE') {
             const productId = req.query.id ? Number(req.query.id) : null;
 
-            if (!productId) {
-                return res.status(400).json({ error: 'Product ID required' });
+            if (!productId || isNaN(productId)) {
+                return safeErrorResponse(res, 400, 'ID Produk wajib diisi');
             }
-
-            console.log('[PRODUCTS] Deleting product:', productId);
 
             await prisma.product.delete({
                 where: { id: productId }
             });
 
-            console.log('[PRODUCTS] Product deleted:', productId);
-            return res.status(200).json({ message: 'Product deleted successfully' });
+            return res.status(200).json({ message: 'Produk berhasil dihapus' });
         }
 
-        res.status(405).json({ error: 'Method not allowed' });
+        return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
-        console.error('[PRODUCTS] Error:', error);
-        res.status(500).json({
-            error: 'Failed to process request',
-            details: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
+        return safeErrorResponse(res, 500, 'Gagal memproses data produk', error);
     } finally {
         await prisma.$disconnect();
     }

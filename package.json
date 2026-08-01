@@ -4,34 +4,38 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "npx concurrently \"tsx server/index.ts\" \"node ./node_modules/vite/bin/vite.js\"",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
     "server": "tsx server/index.ts",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && vite build",
+    "vercel-build": "prisma generate && node ./node_modules/vite/bin/vite.js build",
     "seed-production": "tsx prisma/seed-production.ts"
   },
   "dependencies": {
+    "@better-auth/infra": "^0.3.7",
     "@google/genai": "^1.29.0",
     "@prisma/client": "^6.19.0",
     "@prisma/extension-accelerate": "^2.0.2",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "better-auth": "^1.6.25",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "framer-motion": "^11.2.12",
+    "lucide-react": "^0.469.0",
     "prisma": "^6.19.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "5.4.11"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/node": "^22.14.0",
     "@vercel/node": "^3.0.21",
+    "concurrently": "^10.0.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6"
   }

@@ -2,12 +2,14 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../types';
 import { CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
+import QuickViewModal from '../components/QuickViewModal';
 import Pagination from '../components/ui/Pagination';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Filter, SlidersHorizontal, RefreshCw, Search, X } from 'lucide-react';
 
 const ALL_CATEGORIES_KEYS = ['Semua', ...CATEGORIES];
-const ITEMS_PER_PAGE = 9; // Adjusted for new layout
+const ITEMS_PER_PAGE = 9;
 
 interface AllProductsPageProps {
     products: Product[];
@@ -41,12 +43,28 @@ const gridItemVariants: Variants = {
     }
 };
 
-const AllProductsPage: React.FC<AllProductsPageProps> = ({ products, onProductClick, onAddToCart, wishlistItems, onToggleWishlist, searchQuery, onClearSearch }) => {
-    const [activeCategory, setActiveCategory] = useState('Semua');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortOption, setSortOption] = useState('default');
+const AllProductsPage: React.FC<AllProductsPageProps> = ({
+    products,
+    onProductClick,
+    onAddToCart,
+    wishlistItems,
+    onToggleWishlist,
+    searchQuery,
+    onClearSearch
+}) => {
+    const [activeCategory, setActiveCategory] = useState(() => {
+        return sessionStorage.getItem('catalog_category') || 'Semua';
+    });
+    const [currentPage, setCurrentPage] = useState(() => {
+        const saved = sessionStorage.getItem('catalog_current_page');
+        return saved ? Math.max(1, parseInt(saved, 10)) : 1;
+    });
+    const [sortOption, setSortOption] = useState(() => {
+        return sessionStorage.getItem('catalog_sort') || 'default';
+    });
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [appliedPriceRange, setAppliedPriceRange] = useState<{ min: number | null, max: number | null }>({ min: null, max: null });
+    const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
     const { t } = useTranslations();
 
     const filteredAndSortedProducts = useMemo(() => {
@@ -91,20 +109,39 @@ const AllProductsPage: React.FC<AllProductsPageProps> = ({ products, onProductCl
         return filteredProducts;
     }, [searchQuery, activeCategory, sortOption, appliedPriceRange, products]);
 
+    const totalPages = Math.ceil(filteredAndSortedProducts.length / ITEMS_PER_PAGE) || 1;
 
-    // Reset pagination when filters change
+    // Ensure valid page number if total pages shrinks
     useEffect(() => {
-        setCurrentPage(1);
-    }, [activeCategory, appliedPriceRange, sortOption, searchQuery]);
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+            sessionStorage.setItem('catalog_current_page', String(totalPages));
+        }
+    }, [currentPage, totalPages]);
 
-    const totalPages = Math.ceil(filteredAndSortedProducts.length / ITEMS_PER_PAGE);
     const currentProducts = filteredAndSortedProducts.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
 
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        sessionStorage.setItem('catalog_current_page', String(page));
+        window.scrollTo({ top: 300, behavior: 'smooth' });
+    };
+
     const handleCategoryChange = (category: string) => {
         setActiveCategory(category);
+        setCurrentPage(1);
+        sessionStorage.setItem('catalog_category', category);
+        sessionStorage.setItem('catalog_current_page', '1');
+    };
+
+    const handleSortChange = (sort: string) => {
+        setSortOption(sort);
+        setCurrentPage(1);
+        sessionStorage.setItem('catalog_sort', sort);
+        sessionStorage.setItem('catalog_current_page', '1');
     };
 
     const handleApplyPriceFilter = () => {
@@ -114,112 +151,155 @@ const AllProductsPage: React.FC<AllProductsPageProps> = ({ products, onProductCl
             min: !isNaN(min!) ? min : null,
             max: !isNaN(max!) ? max : null,
         });
+        setCurrentPage(1);
+        sessionStorage.setItem('catalog_current_page', '1');
     };
 
     const handleResetFilters = () => {
         setSortOption('default');
         setPriceRange({ min: '', max: '' });
         setAppliedPriceRange({ min: null, max: null });
-    }
+        setActiveCategory('Semua');
+        setCurrentPage(1);
+        sessionStorage.removeItem('catalog_category');
+        sessionStorage.removeItem('catalog_sort');
+        sessionStorage.setItem('catalog_current_page', '1');
+    };
 
     return (
-        <div className="bg-brand-light">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-brand-dark">{t('allProducts.title')}</h1>
-                    <p className="mt-4 text-lg text-gray-600">{t('allProducts.subtitle')}</p>
+        <div className="min-h-screen bg-stone-950 text-stone-100 py-12">
+            {/* Quick View Modal */}
+            <QuickViewModal
+                product={quickViewProduct}
+                onClose={() => setQuickViewProduct(null)}
+                onAddToCart={onAddToCart}
+                isInWishlist={quickViewProduct ? wishlistItems.includes(quickViewProduct.id) : false}
+                onToggleWishlist={onToggleWishlist}
+            />
+
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Title Section */}
+                <div className="text-center max-w-2xl mx-auto mb-10">
+                    <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-semibold">Katalog Lengkap</span>
+                    <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-100 mt-2 mb-3">
+                        Koleksi & Pusaka Nusantara
+                    </h1>
+                    <p className="text-stone-400 text-sm">
+                        Jelajah dan temukan pusaka bertuah, media spiritual, serta ramuan herbal otentik.
+                    </p>
                 </div>
 
+                {/* Active Search Highlight */}
                 {searchQuery && (
-                    <div className="mb-10 text-center bg-brand-accent/50 p-4 rounded-lg border border-brand-secondary/30">
-                        <p className="text-lg text-brand-dark">{t('allProducts.showingResultsFor', { query: searchQuery })}</p>
+                    <div className="mb-8 p-4 glass-panel rounded-2xl border border-amber-500/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Search className="w-5 h-5 text-amber-400" />
+                            <span className="text-sm text-stone-200">
+                                Menampilkan hasil pencarian untuk: <strong className="text-amber-400">"{searchQuery}"</strong>
+                            </span>
+                        </div>
                         <button
                             onClick={onClearSearch}
-                            className="mt-2 text-sm font-semibold text-brand-primary hover:text-brand-dark transition-colors"
+                            className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-xs text-rose-400 flex items-center gap-1 border border-stone-700"
                         >
-                            {t('allProducts.clearSearch')}
+                            <X className="w-3.5 h-3.5" /> Hapus Pencarian
                         </button>
                     </div>
                 )}
 
-                <div className="flex justify-center flex-wrap gap-2 sm:gap-4 mb-8">
+                {/* Category Pills */}
+                <div className="flex justify-center flex-wrap gap-2 mb-10">
                     {ALL_CATEGORIES_KEYS.map(categoryKey => (
                         <button
                             key={categoryKey}
                             onClick={() => handleCategoryChange(categoryKey)}
-                            className={`px-4 sm:px-6 py-2 rounded-full font-semibold text-sm sm:text-base transition-colors duration-300 ${activeCategory === categoryKey
-                                    ? 'bg-brand-primary text-white shadow-md'
-                                    : 'bg-white text-brand-primary hover:bg-brand-accent'
-                                }`}
+                            className={`px-5 py-2.5 rounded-full font-mono font-medium text-xs transition-all ${
+                                activeCategory === categoryKey
+                                    ? 'bg-amber-500 text-stone-950 font-bold gold-glow'
+                                    : 'glass-panel text-stone-300 hover:text-amber-400 border border-stone-800'
+                            }`}
                         >
                             {t(`categories.${categoryKey.replace(' ', '').toLowerCase()}`)}
                         </button>
                     ))}
                 </div>
 
+                {/* Main Content Layout */}
                 <div className="lg:grid lg:grid-cols-4 lg:gap-8 lg:items-start">
                     {/* Filters Sidebar */}
                     <aside className="lg:col-span-1 mb-8 lg:mb-0">
-                        <div className="sticky top-28 bg-white p-6 rounded-lg shadow-md">
-                            <h3 className="text-xl font-semibold text-brand-dark border-b pb-3 mb-4">{t('filters.filtersTitle')}</h3>
-                            <div className="space-y-6">
+                        <div className="sticky top-28 glass-panel p-6 rounded-2xl border border-amber-500/20 shadow-xl">
+                            <h3 className="text-base font-serif font-bold text-amber-400 border-b border-stone-800 pb-3 mb-5 flex items-center gap-2">
+                                <SlidersHorizontal className="w-4 h-4" /> Filter & Pengurutan
+                            </h3>
+
+                            <div className="space-y-5">
                                 {/* Sort By */}
                                 <div>
-                                    <label htmlFor="sort" className="block text-sm font-medium text-gray-700 mb-1">{t('filters.sortBy')}</label>
+                                    <label className="block text-xs font-mono text-stone-400 mb-1.5">Urutkan Berdasarkan</label>
                                     <select
-                                        id="sort"
                                         value={sortOption}
                                         onChange={(e) => setSortOption(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm"
+                                        className="w-full px-3.5 py-2.5 bg-stone-900 border border-stone-800 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500"
                                     >
-                                        <option value="default">{t('filters.default')}</option>
-                                        <option value="newest">{t('filters.newest')}</option>
-                                        <option value="price-asc">{t('filters.priceLowHigh')}</option>
-                                        <option value="price-desc">{t('filters.priceHighLow')}</option>
-                                        <option value="name-asc">{t('filters.nameAZ')}</option>
-                                        <option value="name-desc">{t('filters.nameZA')}</option>
+                                        <option value="default">Default (Rekomendasi)</option>
+                                        <option value="newest">Terbaru</option>
+                                        <option value="price-asc">Harga: Rendah ke Tinggi</option>
+                                        <option value="price-desc">Harga: Tinggi ke Rendah</option>
+                                        <option value="name-asc">Nama: A - Z</option>
+                                        <option value="name-desc">Nama: Z - A</option>
                                     </select>
                                 </div>
 
                                 {/* Price Range */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('filters.priceRange')}</label>
+                                    <label className="block text-xs font-mono text-stone-400 mb-1.5">Rentang Harga Tuah (Rp)</label>
                                     <div className="flex items-center gap-2">
                                         <input
                                             type="number"
-                                            placeholder={t('filters.minPrice')}
+                                            placeholder="Min"
                                             value={priceRange.min}
                                             onChange={(e) => setPriceRange(p => ({ ...p, min: e.target.value }))}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm"
+                                            className="w-full px-3 py-2 bg-stone-900 border border-stone-800 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500"
                                         />
-                                        <span className="text-gray-500">-</span>
+                                        <span className="text-stone-600">-</span>
                                         <input
                                             type="number"
-                                            placeholder={t('filters.maxPrice')}
+                                            placeholder="Maks"
                                             value={priceRange.max}
                                             onChange={(e) => setPriceRange(p => ({ ...p, max: e.target.value }))}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-gold text-sm"
+                                            className="w-full px-3 py-2 bg-stone-900 border border-stone-800 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Action Buttons */}
-                                <div className="flex flex-col gap-2 pt-4 border-t border-gray-200">
-                                    <button onClick={handleApplyPriceFilter} className="w-full px-4 py-2 bg-brand-secondary text-white rounded-lg hover:bg-brand-primary transition-colors font-semibold text-sm">{t('filters.apply')}</button>
-                                    <button onClick={handleResetFilters} className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-semibold text-sm">{t('filters.resetFilters')}</button>
+                                {/* Filter Buttons */}
+                                <div className="flex flex-col gap-2 pt-4 border-t border-stone-800">
+                                    <button
+                                        onClick={handleApplyPriceFilter}
+                                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold rounded-xl shadow-md gold-glow transition-all"
+                                    >
+                                        Terapkan Filter
+                                    </button>
+                                    <button
+                                        onClick={handleResetFilters}
+                                        className="w-full py-2 text-stone-400 hover:text-stone-200 text-xs flex items-center justify-center gap-1.5 transition-colors"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5" /> Reset Semua Filter
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </aside>
 
-                    {/* Main Content: Products Grid */}
+                    {/* Products Grid */}
                     <main className="lg:col-span-3">
                         <motion.div
                             layout
                             variants={gridContainerVariants}
                             initial="hidden"
                             animate="visible"
-                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 min-h-[500px]"
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 min-h-[500px]"
                         >
                             <AnimatePresence>
                                 {currentProducts.map(product => (
@@ -230,21 +310,29 @@ const AllProductsPage: React.FC<AllProductsPageProps> = ({ products, onProductCl
                                             onAddToCart={onAddToCart}
                                             isInWishlist={wishlistItems.includes(product.id)}
                                             onToggleWishlist={onToggleWishlist}
+                                            onQuickView={(prod) => setQuickViewProduct(prod)}
                                         />
                                     </motion.div>
                                 ))}
                             </AnimatePresence>
                         </motion.div>
+
                         {filteredAndSortedProducts.length === 0 && (
-                            <div className="col-span-full text-center py-16 bg-white rounded-lg shadow-md">
-                                <p className="text-gray-600 text-lg">{t('allProducts.noProducts')}</p>
+                            <div className="text-center py-20 glass-panel rounded-2xl border border-stone-800">
+                                <p className="text-stone-400 text-base mb-4">Tidak ada produk yang cocok dengan kriteria filter.</p>
+                                <button
+                                    onClick={handleResetFilters}
+                                    className="px-6 py-2.5 bg-amber-500 text-stone-950 text-xs font-bold rounded-full"
+                                >
+                                    Reset Filter
+                                </button>
                             </div>
                         )}
 
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
-                            onPageChange={setCurrentPage}
+                            onPageChange={handlePageChange}
                         />
                     </main>
                 </div>

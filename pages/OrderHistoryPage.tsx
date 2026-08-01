@@ -2,20 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, Page } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { api } from '../services/api';
+import { ShoppingBag, Eye, X, Truck, CheckCircle2, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface OrderHistoryPageProps {
     userId: number;
     onNavigate: (page: Page) => void;
 }
 
-const getStatusBadgeColor = (status: OrderStatus) => {
+const getStatusBadgeStyle = (status: OrderStatus) => {
     switch (status) {
-        case OrderStatus.PendingPayment: return 'bg-yellow-100 text-yellow-800';
-        case OrderStatus.Processing: return 'bg-blue-100 text-blue-800';
-        case OrderStatus.Shipped: return 'bg-purple-100 text-purple-800';
-        case OrderStatus.Delivered: return 'bg-green-100 text-green-800';
-        case OrderStatus.Cancelled: return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
+        case OrderStatus.PendingPayment:
+            return 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
+        case OrderStatus.Processing:
+            return 'bg-blue-500/15 text-blue-400 border border-blue-500/30';
+        case OrderStatus.Shipped:
+            return 'bg-purple-500/15 text-purple-400 border border-purple-500/30';
+        case OrderStatus.Delivered:
+            return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        case OrderStatus.Cancelled:
+            return 'bg-rose-500/15 text-rose-400 border border-rose-500/30';
+        default:
+            return 'bg-stone-800 text-stone-300';
     }
 };
 
@@ -51,183 +59,159 @@ const OrderHistoryPage: React.FC<OrderHistoryPageProps> = ({ userId, onNavigate 
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand-primary"></div>
+            <div className="flex justify-center items-center min-h-[70vh] bg-stone-950">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
             </div>
         );
     }
 
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-[60vh]">
-            <div className="text-center mb-12">
-                <h1 className="text-4xl md:text-5xl font-serif font-bold text-brand-dark">{t('orderHistory.title')}</h1>
-                <p className="mt-4 text-lg text-gray-600">{t('orderHistory.subtitle')}</p>
+        <div className="min-h-screen bg-stone-950 text-stone-100 py-12">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-4xl mx-auto">
+                    <div className="text-center max-w-2xl mx-auto mb-10">
+                        <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-semibold">Riwayat Belanja</span>
+                        <h1 className="text-3xl sm:text-5xl font-serif font-bold text-stone-100 mt-2 mb-3">
+                            {t('orderHistory.title')}
+                        </h1>
+                        <p className="text-stone-400 text-sm">
+                            {t('orderHistory.subtitle')}
+                        </p>
+                    </div>
+
+                    {orders.length === 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-center py-20 glass-panel rounded-3xl border border-stone-800"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-4">
+                                <ShoppingBag className="w-8 h-8" />
+                            </div>
+                            <p className="text-stone-300 text-lg font-serif mb-4">{t('orderHistory.empty')}</p>
+                            <button
+                                onClick={() => onNavigate('allProducts')}
+                                className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 font-bold rounded-full text-xs uppercase tracking-wider gold-glow"
+                            >
+                                {t('orderHistory.startShopping')}
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <div className="space-y-4">
+                            {orders.map(order => (
+                                <motion.div
+                                    key={order.id}
+                                    whileHover={{ y: -2 }}
+                                    className="glass-panel p-6 rounded-2xl border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                                >
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-mono font-bold text-amber-400">
+                                                Order #{order.id}
+                                            </span>
+                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold ${getStatusBadgeStyle(order.status)}`}>
+                                                {order.status}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-stone-400 font-mono">
+                                            Tanggal: {new Date(order.orderDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                        </div>
+                                        {order.trackingNumber && (
+                                            <div className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                                                <Truck className="w-3.5 h-3.5" /> Resi: {order.trackingNumber}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-stone-800">
+                                        <div className="text-left sm:text-right">
+                                            <span className="text-[10px] font-mono text-stone-500 block">Total Mahar</span>
+                                            <span className="text-base font-bold gold-gradient-text">
+                                                Rp {order.total.toLocaleString('id-ID')}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleViewDetails(order)}
+                                            className="px-4 py-2 bg-stone-900 hover:bg-amber-500 hover:text-stone-950 border border-stone-800 text-stone-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
+                                        >
+                                            <Eye className="w-3.5 h-3.5" /> Detail
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {orders.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-lg shadow-md">
-                    <p className="text-gray-600 text-lg mb-4">{t('orderHistory.empty')}</p>
-                    <button
-                        onClick={() => onNavigate('allProducts')}
-                        className="bg-brand-primary text-white font-bold py-3 px-6 rounded-full hover:bg-brand-dark transition-colors"
-                    >
-                        {t('orderHistory.startShopping')}
-                    </button>
-                </div>
-            ) : (
-                <>
-                    {/* Desktop Table View */}
-                    <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 border-b border-gray-200">
-                                    <tr>
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('orderHistory.colId')}</th>
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('orderHistory.colDate')}</th>
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('orderHistory.colTotal')}</th>
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('orderHistory.colStatus')}</th>
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">{t('orderHistory.colActions')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {orders.map(order => (
-                                        <tr key={order.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-dark">{order.id}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp {order.total.toLocaleString('id-ID')}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(order.status)}`}>
-                                                    {order.status}
-                                                </span>
-                                                {order.trackingNumber && (
-                                                    <div className="mt-1 text-xs text-gray-500">
-                                                        Resi: <span className="font-mono font-medium text-brand-dark">{order.trackingNumber}</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button onClick={() => handleViewDetails(order)} className="text-brand-primary hover:text-brand-dark transition-colors">{t('orderHistory.viewDetails')}</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    {/* Mobile Card View */}
-                    <div className="md:hidden space-y-4">
-                        {orders.map(order => (
-                            <div key={order.id} className="bg-white rounded-lg shadow-md p-4">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">{t('orderHistory.colId')}</p>
-                                        <p className="text-sm font-bold text-brand-dark">{order.id}</p>
-                                    </div>
-                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(order.status)}`}>
-                                        {order.status}
-                                    </span>
+            {/* Order Details Lightbox Modal */}
+            <AnimatePresence>
+                {selectedOrder && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="glass-panel border border-amber-500/30 rounded-3xl max-w-lg w-full overflow-hidden p-6 text-stone-100 space-y-5"
+                        >
+                            <div className="flex justify-between items-center border-b border-stone-800 pb-3">
+                                <div>
+                                    <h3 className="text-lg font-serif font-bold text-amber-400">Detail Pesanan #{selectedOrder.id}</h3>
+                                    <span className="text-[10px] font-mono text-stone-400">{new Date(selectedOrder.orderDate).toLocaleString('id-ID')}</span>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">{t('orderHistory.colDate')}</p>
-                                        <p className="text-sm font-medium text-gray-700">{new Date(order.orderDate).toLocaleDateString('id-ID')}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">{t('orderHistory.colTotal')}</p>
-                                        <p className="text-sm font-bold text-brand-primary">Rp {order.total.toLocaleString('id-ID')}</p>
-                                    </div>
-                                </div>
-
-                                {order.trackingNumber && (
-                                    <div className="mb-3 p-2 bg-gray-50 rounded">
-                                        <p className="text-xs text-gray-500">Nomor Resi:</p>
-                                        <p className="text-sm font-mono font-medium text-brand-dark">{order.trackingNumber}</p>
-                                    </div>
-                                )}
-
-                                <button
-                                    onClick={() => handleViewDetails(order)}
-                                    className="w-full bg-brand-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-brand-dark transition-colors"
-                                >
-                                    {t('orderHistory.viewDetails')}
+                                <button onClick={closeModal} className="p-1 rounded-full bg-stone-900 text-stone-400 hover:text-stone-200">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
-                        ))}
-                    </div>
-                </>
-            )}
 
-            {/* Order Details Modal */}
-            {selectedOrder && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={closeModal}>
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                        <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
-                            <h3 className="text-2xl font-serif font-bold text-brand-dark">Detail Pesanan</h3>
-                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                {selectedOrder.items.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs p-2.5 rounded-xl bg-stone-900/60 border border-stone-800">
+                                        <div className="flex items-center gap-2.5">
+                                            <img src={item.imageUrls[0]} alt="" className="w-8 h-8 rounded-lg object-cover bg-stone-950" />
+                                            <div>
+                                                <p className="font-semibold text-stone-200 line-clamp-1">{item.name}</p>
+                                                <span className="text-[10px] text-stone-400 font-mono">x{item.quantity}</span>
+                                            </div>
+                                        </div>
+                                        <span className="font-mono font-bold text-amber-400">
+                                            Rp {(item.price * item.quantity).toLocaleString('id-ID')}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
 
-                        <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-sm text-gray-500">Order ID</p>
-                                    <p className="font-bold text-brand-dark">{selectedOrder.id}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Tanggal</p>
-                                    <p className="font-medium">{new Date(selectedOrder.orderDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Status</p>
-                                    <span className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${getStatusBadgeColor(selectedOrder.status)}`}>
+                            <div className="border-t border-stone-800 pt-3 space-y-1.5 text-xs font-mono">
+                                <div className="flex justify-between">
+                                    <span className="text-stone-400">Status Pesanan</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${getStatusBadgeStyle(selectedOrder.status)}`}>
                                         {selectedOrder.status}
                                     </span>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Total</p>
-                                    <p className="font-bold text-brand-primary text-lg">Rp {selectedOrder.total.toLocaleString('id-ID')}</p>
+                                {selectedOrder.trackingNumber && (
+                                    <div className="flex justify-between text-emerald-400">
+                                        <span>Nomor Resi</span>
+                                        <span>{selectedOrder.trackingNumber}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between pt-2 text-sm font-bold border-t border-stone-800">
+                                    <span className="font-serif">Total Pemaharan</span>
+                                    <span className="gold-gradient-text">Rp {selectedOrder.total.toLocaleString('id-ID')}</span>
                                 </div>
                             </div>
 
-                            {selectedOrder.trackingNumber && (
-                                <div className="p-4 bg-blue-50 rounded-lg">
-                                    <p className="text-sm text-gray-600 mb-1">Nomor Resi Pengiriman:</p>
-                                    <p className="font-mono font-bold text-brand-dark text-lg">{selectedOrder.trackingNumber}</p>
-                                </div>
-                            )}
-
-                            <div>
-                                <h4 className="font-bold text-brand-dark mb-3">Item Pesanan:</h4>
-                                <div className="space-y-3">
-                                    {selectedOrder.items?.map((item: any, index: number) => (
-                                        <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                            {item.product?.imageUrls?.[0] && (
-                                                <img src={item.product.imageUrls[0]} alt={item.product.name} className="w-16 h-16 object-cover rounded" />
-                                            )}
-                                            <div className="flex-1">
-                                                <p className="font-medium text-brand-dark">{item.product?.name || 'Product'}</p>
-                                                <p className="text-sm text-gray-500">Qty: {item.quantity} × Rp {item.price.toLocaleString('id-ID')}</p>
-                                            </div>
-                                            <p className="font-bold text-brand-primary">Rp {(item.quantity * item.price).toLocaleString('id-ID')}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="pt-2 text-right">
+                                <button
+                                    onClick={closeModal}
+                                    className="px-5 py-2 bg-amber-500 text-stone-950 text-xs font-bold rounded-xl"
+                                >
+                                    Tutup
+                                </button>
                             </div>
-                        </div>
-
-                        <div className="p-6 bg-gray-50 border-t border-gray-200">
-                            <button onClick={closeModal} className="w-full bg-brand-primary text-white font-bold py-3 px-6 rounded-lg hover:bg-brand-dark transition-colors">
-                                Tutup
-                            </button>
-                        </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
         </div>
     );
 };

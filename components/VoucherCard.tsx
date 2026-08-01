@@ -2,6 +2,7 @@ import React from 'react';
 import { Voucher } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion } from 'framer-motion';
+import { Ticket, CheckCircle2 } from 'lucide-react';
 
 interface VoucherCardProps {
     voucher: Voucher;
@@ -19,36 +20,50 @@ const VoucherCard: React.FC<VoucherCardProps> = ({ voucher, isClaimed, onClaim, 
 
     return (
         <motion.div
-            className="flex w-full max-w-lg rounded-xl bg-white shadow-lg overflow-hidden"
-            whileHover={{ y: -5, scale: 1.02 }}
-            transition={{ type: 'spring', stiffness: 300 }}
+            className="glass-panel rounded-2xl border border-amber-500/20 overflow-hidden flex flex-col sm:flex-row w-full max-w-lg shadow-xl"
+            whileHover={{ y: -4 }}
+            transition={{ duration: 0.3 }}
         >
-            {/* Left side with discount */}
-            <div className="w-1/3 bg-brand-dark p-4 flex flex-col items-center justify-center text-center text-white relative">
-                <p className="font-black text-4xl lg:text-5xl text-brand-gold">{voucher.discountPercentage}%</p>
-                <p className="font-semibold text-lg">OFF</p>
-                <div className="absolute top-0 -right-[1px] h-full w-px bg-repeat-y bg-[length:1px_10px]" style={{backgroundImage: 'linear-gradient(to bottom, #faf8f6 50%, transparent 50%)'}}></div>
+            {/* Left side: Discount badge */}
+            <div className="sm:w-1/3 bg-stone-950 p-6 flex flex-col items-center justify-center text-center relative border-b sm:border-b-0 sm:border-r border-amber-500/20">
+                <p className="font-serif font-black text-4xl lg:text-5xl gold-gradient-text">{voucher.discountPercentage}%</p>
+                <p className="font-mono font-bold text-xs text-amber-400 tracking-widest mt-1">POTONGAN</p>
             </div>
 
-            {/* Right side with details */}
-            <div className="w-2/3 p-4 flex flex-col justify-between bg-brand-light">
+            {/* Right side: Voucher details */}
+            <div className="sm:w-2/3 p-5 flex flex-col justify-between space-y-4">
                 <div>
-                    <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider">{t('vouchers.storeWide')}</p>
-                    <h3 className="font-bold text-xl text-brand-dark mt-1">{voucher.code}</h3>
-                    <p className="text-sm text-gray-600 mt-2">{description}</p>
+                    <span className="text-[10px] font-mono text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                        {voucher.code}
+                    </span>
+                    <h3 className="font-serif font-bold text-base text-stone-100 mt-2">{voucher.code}</h3>
+                    <p className="text-xs text-stone-400 mt-1 line-clamp-2 leading-relaxed">{description}</p>
                 </div>
-                <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                     <p className="text-xs text-gray-500">{t('vouchers.expiresOn', { date: voucher.endDate })}</p>
+
+                <div className="pt-3 border-t border-stone-800 flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-mono text-stone-500">
+                        Berlaku s.d {new Date(voucher.endDate).toLocaleDateString('id-ID')}
+                    </p>
                     <button
                         onClick={() => onClaim(voucher.id)}
                         disabled={isClaimed}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors duration-300 w-full sm:w-auto
-                            ${isClaimed
-                                ? 'bg-green-200 text-green-800 cursor-not-allowed'
-                                : 'bg-brand-primary text-white hover:bg-brand-dark'
-                            }`}
+                        className={`px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 ${
+                            isClaimed
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 hover:from-amber-300 hover:to-amber-400 gold-glow'
+                        }`}
                     >
-                        {isClaimed ? t('vouchers.claimedButton') : t('vouchers.claimButton')}
+                        {isClaimed ? (
+                            <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Terklaim</span>
+                            </>
+                        ) : (
+                            <>
+                                <Ticket className="w-3.5 h-3.5" />
+                                <span>Klaim Kupon</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </div>

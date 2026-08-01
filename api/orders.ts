@@ -1,13 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
+import { setSecurityHeaders, safeErrorResponse } from '../lib/security';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    setSecurityHeaders(res);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -16,26 +14,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         // POST /api/orders - Create new order
         if (req.method === 'POST') {
-            const { userId, items, total } = req.body;
+            const { userId, items, total } = req.body || {};
 
-            console.log('[ORDERS] Creating order - User:', userId, 'Items:', items?.length, 'Total:', total);
-
-            if (!userId || !items || !total) {
-                return res.status(400).json({ error: 'userId, items, and total required' });
+            if (!userId || !items || !Array.isArray(items) || items.length === 0 || total === undefined) {
+                return safeErrorResponse(res, 400, 'userId, items (minimal 1 item), dan total wajib diisi');
             }
+
+            const numUserId = Number(userId);
+            const numTotal = Number(total);
+
+            if (isNaN(numUserId) || isNaN(numTotal) || numTotal < 0) {
+                return safeErrorResponse(res, 400, 'Data userId dan total tidak valid');
+            }
+
+            // Validate order items payload
+            const validatedItems = items.map((item: any) => {
+                const pId = Number(item.productId || item.id);
+                const qty = Math.max(1, Number(item.quantity) || 1);
+                const price = Math.max(0, Number(item.price) || 0);
+
+                if (isNaN(pId)) {
+                    throw new Error('ID produk tidak valid dalam pesanan');
+                }
+
+                return {
+                    productId: pId,
+                    quantity: qty,
+                    price: price
+                };
+            });
 
             // Create order with items
             const order = await prisma.order.create({
                 data: {
-                    userId,
-                    total,
+                    userId: numUserId,
+                    total: numTotal,
                     status: 'Pending Payment',
                     items: {
-                        create: items.map((item: any) => ({
-                            productId: item.id || item.productId,
-                            quantity: item.quantity,
-                            price: item.price,
-                        })),
+                        create: validatedItems,
                     },
                 },
                 select: {
@@ -64,30 +80,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             });
 
-            console.log('[ORDERS] Order created:', order.id);
-
             // Clear user's cart after successful order
             try {
-                const cart = await prisma.cart.findUnique({ where: { userId } });
+                const cart = await prisma.cart.findUnique({ where: { userId: numUserId } });
                 if (cart) {
                     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-                    console.log('[ORDERS] Cart cleared for user:', userId);
                 }
             } catch (err) {
-                console.error('[ORDERS] Failed to clear cart:', err);
-                // Don't fail the order if cart clear fails
+                console.error('[ORDERS] Remote cart clear error:', err);
             }
 
             return res.status(201).json(order);
         }
 
-        // GET /api/orders?userId=X - Get user's orders
+        // GET /api/orders - Get orders (for user or all)
         if (req.method === 'GET') {
             const userId = req.query.userId ? Number(req.query.userId) : null;
 
-            if (userId) {
-                console.log('[ORDERS] Fetching orders for user:', userId);
-
+            if (userId && !isNaN(userId)) {
                 const orders = await prisma.order.findMany({
                     where: { userId },
                     select: {
@@ -108,99 +118,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                     select: {
                                         id: true,
                                         name: true,
-                                        imageUrls: true
+                                        imageUrls: true,
+                                        category: true
                                     }
                                 }
                             }
                         }
                     },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: { createdAt: 'desc' }
                 });
-
-                console.log('[ORDERS] Found', orders.length, 'orders');
-                return res.status(200).json(orders);
-            } else {
-                // Get all orders (for admin)
-                console.log('[ORDERS] Fetching all orders');
-
-                const orders = await prisma.order.findMany({
-                    select: {
-                        id: true,
-                        userId: true,
-                        total: true,
-                        status: true,
-                        trackingNumber: true,
-                        createdAt: true,
-                        updatedAt: true,
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true
-                            }
-                        },
-                        items: {
-                            select: {
-                                id: true,
-                                productId: true,
-                                quantity: true,
-                                price: true,
-                                product: {
-                                    select: {
-                                        id: true,
-                                        name: true
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    orderBy: { createdAt: 'desc' },
-                });
-
-                console.log('[ORDERS] Found', orders.length, 'total orders');
                 return res.status(200).json(orders);
             }
+
+            const orders = await prisma.order.findMany({
+                select: {
+                    id: true,
+                    userId: true,
+                    total: true,
+                    status: true,
+                    trackingNumber: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    },
+                    items: {
+                        select: {
+                            id: true,
+                            productId: true,
+                            quantity: true,
+                            price: true,
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    imageUrls: true
+                                }
+                            }
+                        }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+            return res.status(200).json(orders);
         }
 
         // PUT /api/orders?id=X - Update order status
         if (req.method === 'PUT') {
-            const orderId = req.query.id ? String(req.query.id) : null;
-            const { status, trackingNumber } = req.body;
+            const orderId = req.query.id ? Number(req.query.id) : null;
+            const { status, trackingNumber } = req.body || {};
 
-            if (!orderId) {
-                return res.status(400).json({ error: 'Order ID required' });
+            if (!orderId || isNaN(orderId)) {
+                return safeErrorResponse(res, 400, 'ID Pesanan wajib diisi');
             }
 
-            console.log('[ORDERS] Updating order:', orderId, 'Status:', status);
-
-            const order = await prisma.order.update({
-                where: { id: Number(orderId) },
+            const updatedOrder = await prisma.order.update({
+                where: { id: orderId },
                 data: {
-                    status: status || undefined,
-                    trackingNumber: trackingNumber || undefined,
+                    status: status ? String(status).trim() : undefined,
+                    trackingNumber: trackingNumber !== undefined ? String(trackingNumber).trim() : undefined,
                 },
-                select: {
-                    id: true,
-                    status: true,
-                    trackingNumber: true,
-                    updatedAt: true
-                }
             });
 
-            console.log('[ORDERS] Order updated:', order.id);
-            return res.status(200).json(order);
+            return res.status(200).json(updatedOrder);
         }
 
         return res.status(405).json({ error: 'Method not allowed' });
 
     } catch (error) {
-        console.error('[ORDERS] Error:', error);
-
-        return res.status(500).json({
-            error: 'Order operation failed',
-            message: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
+        return safeErrorResponse(res, 500, 'Gagal memproses data pesanan', error);
     } finally {
         await prisma.$disconnect();
     }

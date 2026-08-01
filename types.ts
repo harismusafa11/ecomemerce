@@ -3,6 +3,7 @@ import React from 'react';
 export interface Product {
   id: number;
   name: string;
+  slug?: string;
   description: string;
   price: number;
   imageUrls: string[]; // Changed from imageUrl: string

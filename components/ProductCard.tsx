@@ -2,6 +2,8 @@ import React, { useState, useRef, memo } from 'react';
 import { Product } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion } from 'framer-motion';
+import { Eye, Heart, ShoppingBag, CheckCircle } from 'lucide-react';
+import LazyImage from './ui/LazyImage';
 
 interface ProductCardProps {
     product: Product;
@@ -9,85 +11,146 @@ interface ProductCardProps {
     onAddToCart: (product: Product, startRect: DOMRect) => void;
     isInWishlist: boolean;
     onToggleWishlist: (productId: number) => void;
+    onQuickView?: (product: Product) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onAddToCart, isInWishlist, onToggleWishlist }) => {
+const ProductCard: React.FC<ProductCardProps> = ({
+    product,
+    onClick,
+    onAddToCart,
+    isInWishlist,
+    onToggleWishlist,
+    onQuickView
+}) => {
     const [isAdded, setIsAdded] = useState(false);
     const imageRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslations();
 
     const handleAddToCartClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent card's onClick from firing
+        e.stopPropagation();
         if (imageRef.current) {
             const rect = imageRef.current.getBoundingClientRect();
             onAddToCart(product, rect);
         }
         setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 2000); // Reset after 2 seconds
+        setTimeout(() => setIsAdded(false), 2000);
     };
-    
+
     const handleWishlistClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onToggleWishlist(product.id);
     };
 
+    const handleQuickViewClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onQuickView) onQuickView(product);
+        else onClick();
+    };
+
     return (
         <motion.div
             onClick={onClick}
-            className="relative group bg-white rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer overflow-hidden flex flex-col"
-            whileHover={{ y: -5 }}
+            className="product-card-3d relative group glass-panel rounded-2xl overflow-hidden cursor-pointer flex flex-col h-full border border-amber-500/20 hover:border-amber-500/50 shadow-xl transition-all duration-300"
+            whileHover={{ y: -6 }}
             layout
         >
-            {/* Neon Glow Effect (subtle) */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-gold via-brand-secondary to-brand-primary rounded-xl blur-lg opacity-0 group-hover:opacity-60 transition-opacity duration-300"></div>
+            {/* Ambient Backlight on Hover */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col h-full bg-white rounded-xl">
-                 {/* Image Section */}
-                <div ref={imageRef} className="relative aspect-square w-full bg-brand-dark rounded-t-xl overflow-hidden p-4">
-                    <motion.img
+            <div className="relative z-10 flex flex-col h-full">
+                {/* Image Showcase */}
+                <div ref={imageRef} className="relative aspect-square w-full bg-stone-950/80 overflow-hidden p-4 flex items-center justify-center">
+                    <LazyImage
                         src={product.imageUrls[0]}
-                        alt={product.name}
-                        className="w-full h-full object-contain transition-transform duration-500"
-                        whileHover={{ scale: 1.1 }}
-                        loading="lazy"
-                        decoding="async"
+                        alt={`Foto Asli ${product.name} - ${product.category} Tapak Pamungkas`}
+                        title={`${product.name} | Mahar ${product.category} Otentik Tapak Pamungkas`}
+                        className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-110 transition-transform duration-500"
                     />
-                    {/* Wishlist icon */}
-                    <button 
-                        onClick={handleWishlistClick}
-                        className="absolute top-4 right-4 bg-black/30 backdrop-blur-sm p-2 rounded-full text-white hover:bg-black/50 transition-colors z-20"
-                        aria-label="Toggle Wishlist"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" stroke="currentColor" fill={isInWishlist ? 'currentColor' : 'none'} >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.662l1.318-1.344a4.5 4.5 0 116.364 6.364L12 20.364l-7.682-7.682a4.5 4.5 0 010-6.364z" />
-                        </svg>
-                    </button>
+
+                    {/* Stock Status Badge */}
+                    <div className="absolute top-3 left-3 z-20">
+                        {product.stock > 0 ? (
+                            <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-full bg-stone-900/80 backdrop-blur-md text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Stok {product.stock}
+                            </span>
+                        ) : (
+                            <span className="text-[10px] font-mono font-medium px-2.5 py-1 rounded-full bg-rose-950/80 backdrop-blur-md text-rose-400 border border-rose-500/30">
+                                Habis
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Floating Action Buttons */}
+                    <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
+                        <button
+                            onClick={handleWishlistClick}
+                            className={`p-2 rounded-full backdrop-blur-md border transition-all ${
+                                isInWishlist
+                                    ? 'bg-rose-600/90 text-white border-rose-500 shadow-md'
+                                    : 'bg-stone-900/70 text-stone-300 border-stone-700 hover:text-rose-400 hover:border-rose-500/50'
+                            }`}
+                            aria-label="Wishlist"
+                        >
+                            <Heart className="w-4 h-4" fill={isInWishlist ? 'currentColor' : 'none'} />
+                        </button>
+                        <button
+                            onClick={handleQuickViewClick}
+                            className="p-2 rounded-full bg-stone-900/70 text-stone-300 border border-stone-700 hover:text-amber-400 hover:border-amber-500/50 backdrop-blur-md transition-all"
+                            title="Quick Preview"
+                        >
+                            <Eye className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Details Section */}
-                <div className="p-5 flex-grow flex flex-col">
-                    <h3 className="text-xl font-serif font-bold text-brand-dark mb-1 h-16 line-clamp-2">{product.name}</h3>
-                    <div className="flex gap-2 mb-3">
-                         <span className="text-xs font-semibold bg-brand-accent text-brand-primary px-2 py-1 rounded-full">{t(`categories.${product.category.replace(' ', '').toLowerCase()}`)}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">{product.description}</p>
-                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
-                        <div>
-                            <p className="text-xs text-gray-500">{t('productCard.price')}</p>
-                            <p className="text-lg font-bold text-brand-primary">Rp {product.price.toLocaleString('id-ID')}</p>
+                <div className="p-5 flex-grow flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center gap-1.5 mb-2">
+                            <span className="text-[11px] font-mono font-medium text-amber-400/90 uppercase tracking-wider bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                                {product.category}
+                            </span>
                         </div>
+                        <h3 className="text-base font-serif font-bold text-stone-100 group-hover:text-amber-300 transition-colors line-clamp-1 mb-1">
+                            {product.name}
+                        </h3>
+                        <p className="text-xs text-stone-400 line-clamp-2 mb-4 leading-relaxed">
+                            {product.description}
+                        </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-stone-800/80 flex items-center justify-between mt-auto">
+                        <div>
+                            <span className="text-[10px] uppercase font-mono text-stone-500 block">Harga Tuah</span>
+                            <span className="text-base font-bold gold-gradient-text">
+                                Rp {product.price.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+
                         <motion.button
                             onClick={handleAddToCartClick}
-                            disabled={isAdded}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ease-in-out ${
-                                isAdded 
-                                ? 'bg-green-500 text-white' 
-                                : 'bg-brand-primary text-white'
+                            disabled={isAdded || product.stock <= 0}
+                            className={`p-2.5 rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5 ${
+                                isAdded
+                                    ? 'bg-emerald-500 text-stone-950 font-bold'
+                                    : product.stock > 0
+                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500 hover:text-stone-950 gold-glow-hover'
+                                    : 'bg-stone-800 text-stone-600 cursor-not-allowed border border-stone-800'
                             }`}
-                            whileHover={{ scale: 1.05, backgroundColor: '#211c18' }}
                             whileTap={{ scale: 0.95 }}
                         >
-                            {isAdded ? t('productCard.added') : t('productCard.addToCart')}
+                            {isAdded ? (
+                                <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>Tersimpan</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ShoppingBag className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Beli</span>
+                                </>
+                            )}
                         </motion.button>
                     </div>
                 </div>

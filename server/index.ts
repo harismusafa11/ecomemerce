@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './db';
+import { hashPassword, verifyPassword, sanitizeUser, isValidEmail } from '../lib/security';
 
 dotenv.config();
 
@@ -58,7 +59,13 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from '../lib/auth';
+
 app.use(express.json({ limit: '10mb' }));
+
+// Better Auth Router
+app.all('/api/auth/*', toNodeHandler(auth));
 
 // Rate limiting (simple implementation)
 const requestCounts = new Map();
@@ -130,139 +137,358 @@ app.post('/api/products', async (req, res) => {
     }
 });
 
-app.put('/api/products/:id', async (req, res) => {
+const handleProductUpdate = async (req: express.Request, res: express.Response) => {
     try {
+        const productId = Number(req.params.id || req.query.id);
+        if (isNaN(productId)) {
+            return res.status(400).json({ error: 'Invalid product ID' });
+        }
         const { name, description, price, imageUrls, category, stock } = req.body;
         const product = await prisma.product.update({
-            where: { id: Number(req.params.id) },
+            where: { id: productId },
             data: {
-                name,
-                description,
-                price: Number(price),
-                imageUrls,
-                category,
-                stock: Number(stock),
+                name: name ? String(name).trim() : undefined,
+                description: description ? String(description).trim() : undefined,
+                price: price !== undefined ? Number(price) : undefined,
+                imageUrls: Array.isArray(imageUrls) ? imageUrls : undefined,
+                category: category ? String(category).trim() : undefined,
+                stock: stock !== undefined ? Number(stock) : undefined,
             },
         });
         res.json(product);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update product' });
+        console.error('Update product error:', error);
+        res.status(500).json({ error: 'Failed to update product', details: error instanceof Error ? error.message : String(error) });
     }
-});
+};
 
-app.delete('/api/products/:id', async (req, res) => {
+const handleProductDelete = async (req: express.Request, res: express.Response) => {
     try {
+        const productId = Number(req.params.id || req.query.id);
+        if (isNaN(productId)) {
+            return res.status(400).json({ error: 'Invalid product ID' });
+        }
         await prisma.product.delete({
-            where: { id: Number(req.params.id) },
+            where: { id: productId },
         });
-        res.json({ message: 'Product deleted' });
+        res.json({ message: 'Product deleted successfully' });
     } catch (error) {
+        console.error('Delete product error:', error);
         res.status(500).json({ error: 'Failed to delete product' });
     }
-});
+};
+
+app.put('/api/products/:id', handleProductUpdate);
+app.put('/api/products', handleProductUpdate);
+app.delete('/api/products/:id', handleProductDelete);
+app.delete('/api/products', handleProductDelete);
 
 // --- USERS ---
+// --- USERS & AUTHENTICATION ---
 app.post('/api/login', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password } = req.body || {};
 
-        if (!email || !password) {
+        if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
             return res.status(400).json({ error: 'Email and password required' });
         }
 
-        console.log('Login attempt for:', email);
+        const trimmedEmail = email.trim().toLowerCase();
+
+        if (!isValidEmail(trimmedEmail)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
 
         const user = await prisma.user.findUnique({
-            where: { email },
+            where: { email: trimmedEmail },
         });
 
-        if (!user) {
-            console.log('User not found:', email);
+        if (!user || !user.password) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        if (user.password !== password) {
-            console.log('Password mismatch for:', email);
+        const isPasswordValid = verifyPassword(password, user.password);
+        if (!isPasswordValid) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        console.log('Login successful for:', email);
-        res.json(user);
+        return res.json(sanitizeUser(user));
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({
-            error: 'Login failed',
-            details: error instanceof Error ? error.message : String(error)
-        });
+        return res.status(500).json({ error: 'Login failed' });
     }
 });
 
 app.post('/api/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password } = req.body || {};
+
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Name, email, and password required' });
+        }
+
+        const trimmedName = String(name).trim();
+        const trimmedEmail = String(email).trim().toLowerCase();
+
+        if (!isValidEmail(trimmedEmail)) {
+            return res.status(400).json({ error: 'Invalid email format' });
+        }
+
+        if (String(password).length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+
+        const existingUser = await prisma.user.findUnique({
+            where: { email: trimmedEmail },
+            select: { id: true }
+        });
+
+        if (existingUser) {
+            return res.status(409).json({ error: 'Email already registered' });
+        }
+
+        const hashedPassword = hashPassword(String(password));
+
         const user = await prisma.user.create({
             data: {
-                name,
-                email,
-                password, // In real app, hash this
+                name: trimmedName,
+                email: trimmedEmail,
+                password: hashedPassword,
                 isAdmin: false,
             },
         });
-        res.json(user);
+
+        return res.status(201).json(sanitizeUser(user));
     } catch (error) {
-        res.status(500).json({ error: 'Registration failed' });
+        console.error('Registration error:', error);
+        return res.status(500).json({ error: 'Registration failed' });
     }
 });
 
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await prisma.user.findMany();
-        res.json(users);
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                isAdmin: true,
+                createdAt: true,
+                updatedAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        return res.json(users);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch users' });
+        return res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
 
 app.put('/api/users/:id', async (req, res) => {
     try {
-        const { name, email, isAdmin } = req.body;
+        const userId = Number(req.params.id);
+        if (isNaN(userId)) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
+        const { name, email, isAdmin } = req.body || {};
         const user = await prisma.user.update({
-            where: { id: Number(req.params.id) },
-            data: { name, email, isAdmin: Boolean(isAdmin) },
+            where: { id: userId },
+            data: {
+                name: name ? String(name).trim() : undefined,
+                email: email ? String(email).trim().toLowerCase() : undefined,
+                isAdmin: isAdmin !== undefined ? Boolean(isAdmin) : undefined
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                isAdmin: true,
+                createdAt: true,
+                updatedAt: true
+            }
         });
-        res.json(user);
+        return res.json(sanitizeUser(user));
     } catch (error) {
-        res.status(500).json({ error: 'Failed to update user' });
+        return res.status(500).json({ error: 'Failed to update user' });
     }
 });
 
 app.delete('/api/users/:id', async (req, res) => {
     try {
+        const userId = Number(req.params.id);
+        if (isNaN(userId)) {
+            return res.status(400).json({ error: 'Invalid user ID' });
+        }
         await prisma.user.delete({
+            where: { id: userId },
+        });
+        return res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+// --- ONGKIR / SHIPPING CALCULATOR ---
+app.all('/api/ongkir', async (req, res) => {
+    try {
+        const BINDERBYTE_API_KEY = process.env.BINDERBYTE_API_KEY || '61af8cfe84f6a0cebbe7ff3c37d5839c1a2341e8969c3d20d9137bb98434578b';
+        const searchTerm = String(req.query.search || req.body?.search || '').trim();
+
+        if (searchTerm) {
+            try {
+                const url = `https://api.binderbyte.com/v1/locations?search=${encodeURIComponent(searchTerm)}&api_key=${BINDERBYTE_API_KEY}`;
+                const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.data && Array.isArray(data.data)) {
+                        return res.json({ status: 200, data: data.data });
+                    }
+                }
+            } catch (err) {
+                console.error('[BINDERBYTE LOCATIONS SEARCH ERROR]:', err);
+            }
+            return res.json({ status: 200, data: [] });
+        }
+
+        const destinationProvince = String(req.query.province || req.body?.province || '').trim();
+        const destinationCity = String(req.query.city || req.body?.city || '').trim();
+        const destinationDistrict = String(req.query.district || req.body?.district || '').trim();
+        const weightGrams = Math.max(100, Number(req.query.weight || req.body?.weight || 1000));
+        const weightKg = Math.ceil(weightGrams / 1000);
+
+        if (!destinationProvince || !destinationCity) {
+            return res.status(400).json({ error: 'Provinsi dan Kota/Kabupaten tujuan wajib diisi' });
+        }
+
+        const ORIGIN_KECAMATAN = process.env.DEFAULT_ORIGIN_KECAMATAN || 'Ulujami';
+        const ORIGIN_KOTA = process.env.DEFAULT_ORIGIN_KOTA || 'Pemalang';
+        const ORIGIN_PROVINSI = process.env.DEFAULT_ORIGIN_PROVINSI || 'Jawa Tengah';
+
+        // Fallback tariff matrix
+        const provUpper = destinationProvince.toUpperCase();
+        let jneBase = 14000;
+        let jntBase = 15000;
+        let sicepatBase = 14500;
+        let posBase = 13000;
+        let etdJne = '1-2 Hari';
+        let etdPos = '2-3 Hari';
+
+        if (provUpper.includes('JAWA TENGAH') || provUpper.includes('YOGYAKARTA')) {
+            jneBase = 10000; jntBase = 11000; sicepatBase = 10500; posBase = 9000;
+        } else if (provUpper.includes('JAKARTA') || provUpper.includes('BANTEN') || provUpper.includes('JAWA BARAT')) {
+            jneBase = 13000; jntBase = 14000; sicepatBase = 13500; posBase = 12000;
+        } else if (provUpper.includes('JAWA TIMUR')) {
+            jneBase = 14000; jntBase = 15000; sicepatBase = 14500; posBase = 13000;
+        } else if (provUpper.includes('SUMATERA') || provUpper.includes('SUMATRA') || provUpper.includes('ACEH') || provUpper.includes('RIAU') || provUpper.includes('LAMPUNG')) {
+            jneBase = 24000; jntBase = 26000; sicepatBase = 25000; posBase = 22000; etdJne = '2-4 Hari'; etdPos = '3-5 Hari';
+        } else if (provUpper.includes('BALI') || provUpper.includes('NUSA TENGGARA')) {
+            jneBase = 26000; jntBase = 28000; sicepatBase = 27000; posBase = 24000; etdJne = '2-4 Hari'; etdPos = '3-5 Hari';
+        } else if (provUpper.includes('KALIMANTAN')) {
+            jneBase = 32000; jntBase = 35000; sicepatBase = 34000; posBase = 30000; etdJne = '3-5 Hari'; etdPos = '4-6 Hari';
+        } else if (provUpper.includes('SULAWESI')) {
+            jneBase = 35000; jntBase = 38000; sicepatBase = 36000; posBase = 33000; etdJne = '3-5 Hari'; etdPos = '4-6 Hari';
+        } else if (provUpper.includes('PAPUA') || provUpper.includes('MALUKU')) {
+            jneBase = 75000; jntBase = 82000; sicepatBase = 78000; posBase = 70000; etdJne = '4-7 Hari'; etdPos = '5-8 Hari';
+        }
+
+        const multiplier = Math.max(1, weightKg);
+        const options = [
+            { code: 'jne', courierName: 'JNE Express', service: 'REG (Reguler)', description: `Dari ${ORIGIN_KECAMATAN}, ${ORIGIN_KOTA}`, cost: Math.round(jneBase * multiplier), etd: etdJne },
+            { code: 'jnt', courierName: 'J&T Express', service: 'EZ (Standard)', description: `Dari ${ORIGIN_KECAMATAN}, ${ORIGIN_KOTA}`, cost: Math.round(jntBase * multiplier), etd: etdJne },
+            { code: 'sicepat', courierName: 'SiCepat Express', service: 'REG (Reguler)', description: `Dari ${ORIGIN_KECAMATAN}, ${ORIGIN_KOTA}`, cost: Math.round(sicepatBase * multiplier), etd: etdJne },
+            { code: 'pos', courierName: 'POS Indonesia', service: 'Kilat Khusus', description: `Dari ${ORIGIN_KECAMATAN}, ${ORIGIN_KOTA}`, cost: Math.round(posBase * multiplier), etd: etdPos }
+        ];
+
+        return res.json({
+            origin: { kecamatan: ORIGIN_KECAMATAN, kota: ORIGIN_KOTA, provinsi: ORIGIN_PROVINSI },
+            destination: { district: destinationDistrict, city: destinationCity, province: destinationProvince },
+            weightKg,
+            source: 'smart_tariff_matrix',
+            options
+        });
+    } catch (error) {
+        return res.status(500).json({ error: 'Gagal menghitung ongkir' });
+    }
+});
+
+// --- USER ADDRESSES ---
+app.get('/api/addresses/:userId', async (req, res) => {
+    try {
+        const addresses = await prisma.userAddress.findMany({
+            where: { userId: Number(req.params.userId) },
+            orderBy: { isPrimary: 'desc' },
+        });
+        res.json(addresses);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch user addresses' });
+    }
+});
+
+app.post('/api/addresses', async (req, res) => {
+    try {
+        const { userId, recipientName, phone, province, city, district, village, postalCode, fullAddress, isPrimary } = req.body;
+
+        if (isPrimary) {
+            await prisma.userAddress.updateMany({
+                where: { userId: Number(userId) },
+                data: { isPrimary: false },
+            });
+        }
+
+        const address = await prisma.userAddress.create({
+            data: {
+                userId: Number(userId),
+                recipientName: String(recipientName),
+                phone: String(phone),
+                province: String(province),
+                city: String(city),
+                district: String(district),
+                village: village ? String(village) : null,
+                postalCode: postalCode ? String(postalCode) : null,
+                fullAddress: String(fullAddress),
+                isPrimary: isPrimary !== undefined ? Boolean(isPrimary) : true,
+            },
+        });
+        res.json(address);
+    } catch (error) {
+        console.error('Error saving address:', error);
+        res.status(500).json({ error: 'Failed to save address' });
+    }
+});
+
+app.delete('/api/addresses/:id', async (req, res) => {
+    try {
+        await prisma.userAddress.delete({
             where: { id: Number(req.params.id) },
         });
-        res.json({ message: 'User deleted' });
+        res.json({ message: 'Address deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to delete user' });
+        res.status(500).json({ error: 'Failed to delete address' });
     }
 });
 
 // --- ORDERS ---
 app.post('/api/orders', async (req, res) => {
     try {
-        const { userId, items, total } = req.body;
-        // items should be array of { productId, quantity, price }
+        const { userId, items, total, shippingCost, shippingCourier, province, city, district, village, fullAddress } = req.body;
 
         const order = await prisma.order.create({
             data: {
-                userId,
-                total,
+                userId: Number(userId),
+                total: Number(total),
+                shippingCost: Number(shippingCost || 0),
+                shippingCourier: shippingCourier ? String(shippingCourier) : undefined,
+                province: province ? String(province) : undefined,
+                city: city ? String(city) : undefined,
+                district: district ? String(district) : undefined,
+                village: village ? String(village) : undefined,
+                fullAddress: fullAddress ? String(fullAddress) : undefined,
                 status: 'Pending Payment',
                 items: {
                     create: items.map((item: any) => ({
-                        productId: item.id,
-                        quantity: item.quantity,
-                        price: item.price,
+                        productId: Number(item.id || item.productId),
+                        quantity: Number(item.quantity),
+                        price: Number(item.price),
                     })),
                 },
             },
@@ -270,7 +496,7 @@ app.post('/api/orders', async (req, res) => {
         });
         res.json(order);
     } catch (error) {
-        console.error(error);
+        console.error('Order creation error:', error);
         res.status(500).json({ error: 'Failed to create order' });
     }
 });
@@ -617,7 +843,74 @@ app.delete('/api/vouchers/:id', async (req, res) => {
     }
 });
 
-if (process.env.NODE_ENV !== 'production') {
+// --- SEO SITEMAP & ROBOTS.TXT FOR GOOGLEBOT / BINGBOT ---
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
+        const products = await prisma.product.findMany({
+            select: { id: true, name: true, updatedAt: true, imageUrls: true }
+        });
+
+        const slugifyLocal = (text: string) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+
+        const staticPages = [
+            { url: `${baseUrl}/`, priority: '1.0', changefreq: 'daily' },
+            { url: `${baseUrl}/#/katalog`, priority: '0.9', changefreq: 'daily' },
+            { url: `${baseUrl}/#/tentang-kami`, priority: '0.8', changefreq: 'weekly' },
+            { url: `${baseUrl}/#/kontak`, priority: '0.8', changefreq: 'weekly' },
+            { url: `${baseUrl}/#/kupon`, priority: '0.7', changefreq: 'weekly' },
+        ];
+
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+        xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
+
+        for (const page of staticPages) {
+            xml += `  <url>\n`;
+            xml += `    <loc>${page.url}</loc>\n`;
+            xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+            xml += `    <priority>${page.priority}</priority>\n`;
+            xml += `  </url>\n`;
+        }
+
+        for (const product of products) {
+            const slug = slugifyLocal(product.name);
+            const productUrl = `${baseUrl}/#/produk/${slug}`;
+            const lastMod = product.updatedAt ? new Date(product.updatedAt).toISOString() : new Date().toISOString();
+            const mainImg = product.imageUrls && product.imageUrls[0] ? product.imageUrls[0] : '';
+
+            xml += `  <url>\n`;
+            xml += `    <loc>${productUrl}</loc>\n`;
+            xml += `    <lastmod>${lastMod}</lastmod>\n`;
+            xml += `    <changefreq>daily</changefreq>\n`;
+            xml += `    <priority>0.9</priority>\n`;
+            if (mainImg) {
+                xml += `    <image:image>\n`;
+                xml += `      <image:loc>${mainImg}</image:loc>\n`;
+                xml += `      <image:title>${product.name.replace(/&/g, '&amp;')}</image:title>\n`;
+                xml += `    </image:image>\n`;
+            }
+            xml += `  </url>\n`;
+        }
+
+        xml += `</urlset>`;
+
+        res.header('Content-Type', 'application/xml');
+        res.header('Cache-Control', 'public, max-age=3600');
+        res.send(xml);
+    } catch (error) {
+        console.error('Sitemap generation error:', error);
+        res.status(500).send('Error generating sitemap');
+    }
+});
+
+app.get('/robots.txt', (req, res) => {
+    const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
+    const robots = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\n\nSitemap: ${baseUrl}/sitemap.xml\n`;
+    res.header('Content-Type', 'text/plain');
+    res.send(robots);
+});
+
+if (!process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
     });

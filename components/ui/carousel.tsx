@@ -17,6 +17,8 @@ const ChevronRightIcon = () => (
 interface CarouselProps {
     imageUrls: string[];
     onImageClick?: (index: number) => void;
+    title?: string;
+    alt?: string;
 }
 
 const variants = {
@@ -41,7 +43,7 @@ const swipePower = (offset: number, velocity: number) => {
     return Math.abs(offset) * velocity;
 };
 
-const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick }) => {
+const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick, title = "Foto Pusaka Tapak Pamungkas", alt = "Galeri Foto Pusaka & Media Spiritual Tapak Pamungkas" }) => {
     const [[page, direction], setPage] = useState([0, 0]);
 
     const imageIndex = page % imageUrls.length;
@@ -61,6 +63,11 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick }) => {
                 <motion.img
                     key={page}
                     src={imageUrls[imageIndex]}
+                    alt={`${alt} - Slide ${imageIndex + 1}`}
+                    title={`${title} (Foto ${imageIndex + 1})`}
+                    itemProp="image"
+                    loading="lazy"
+                    decoding="async"
                     custom={direction}
                     variants={variants}
                     initial="enter"
@@ -81,8 +88,10 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick }) => {
                             paginate(-1);
                         }
                     }}
-                    onClick={() => onImageClick?.(imageIndex)}
-                    className={`absolute w-full h-full object-cover ${onImageClick ? 'cursor-pointer' : ''}`}
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://files.catbox.moe/z44d2s.png';
+                    }}
+                    className={`absolute w-full h-full object-contain ${onImageClick ? 'cursor-pointer' : ''}`}
                 />
             </AnimatePresence>
 

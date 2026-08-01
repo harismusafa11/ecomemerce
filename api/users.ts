@@ -1,31 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
+import { setSecurityHeaders, safeErrorResponse } from '../lib/security';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,DELETE,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    setSecurityHeaders(res);
 
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
     try {
-        // GET /api/users - Get all users
-        // GET /api/users?id=X - Get single user
+        // GET /api/users - Get all users or single user (without password exposure)
         if (req.method === 'GET') {
             const userId = req.query.id ? Number(req.query.id) : null;
 
-            if (userId) {
-                console.log('[USERS] Fetching user:', userId);
+            if (userId && !isNaN(userId)) {
                 const user = await prisma.user.findUnique({
                     where: { id: userId },
                     select: {
@@ -39,13 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
 
                 if (!user) {
-                    return res.status(404).json({ error: 'User not found' });
+                    return safeErrorResponse(res, 404, 'Pengguna tidak ditemukan');
                 }
 
                 return res.status(200).json(user);
             }
 
-            console.log('[USERS] Fetching all users');
             const users = await prisma.user.findMany({
                 select: {
                     id: true,
@@ -64,28 +54,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method === 'DELETE') {
             const userId = req.query.id ? Number(req.query.id) : null;
 
-            if (!userId) {
-                return res.status(400).json({ error: 'User ID required' });
+            if (!userId || isNaN(userId)) {
+                return safeErrorResponse(res, 400, 'ID Pengguna wajib diisi');
             }
-
-            console.log('[USERS] Deleting user:', userId);
 
             await prisma.user.delete({
                 where: { id: userId }
             });
 
-            console.log('[USERS] User deleted:', userId);
-            return res.status(200).json({ message: 'User deleted successfully' });
+            return res.status(200).json({ message: 'Pengguna berhasil dihapus' });
         }
 
-        res.status(405).json({ error: 'Method not allowed' });
+        return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
-        console.error('[USERS] Error:', error);
-        res.status(500).json({
-            error: 'Failed to process request',
-            details: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
+        return safeErrorResponse(res, 500, 'Gagal memproses data pengguna', error);
     } finally {
         await prisma.$disconnect();
     }

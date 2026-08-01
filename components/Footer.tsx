@@ -12,54 +12,64 @@ const Footer: React.FC<FooterProps> = ({ onAdminTrigger, onNavigate }) => {
     const { t } = useTranslations();
 
     return (
-        <footer className="bg-brand-dark text-brand-accent">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-4 mb-4 lg:mb-0">
-                        <div className="flex items-center gap-3 mb-4">
-                            <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas Logo" className="h-12" loading="lazy" decoding="async" />
-                            <div className="border border-brand-accent/80 rounded-md px-3 py-1">
-                                <span className="text-xl font-serif font-bold text-white">Tapak Pamungkas</span>
+        <footer className="bg-stone-950 text-stone-400 border-t border-amber-500/20 pt-16 pb-12">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Brand Info */}
+                    <div className="lg:col-span-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas" className="h-10 w-10 rounded-full border border-amber-500/40" />
+                            <div className="flex flex-col">
+                                <span className="text-xl font-serif font-bold gold-gradient-text">Tapak Pamungkas</span>
+                                <span className="text-[10px] text-amber-400/80 uppercase tracking-widest font-mono">Warisan Nusantara</span>
                             </div>
                         </div>
-                        <p className="text-sm max-w-sm">{t('footer.tagline')}</p>
+                        <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
+                            {t('footer.tagline')}
+                        </p>
                     </div>
 
-                    <div className="lg:col-span-2">
-                         <h3 className="text-lg font-semibold text-white mb-4">{t('footer.shopTitle')}</h3>
-                         <ul className="space-y-2 text-sm">
-                            <li><a onClick={() => onNavigate('allProducts')} className="cursor-pointer hover:text-white transition-colors">{t('footer.shopProducts')}</a></li>
-                            <li><a onClick={() => onNavigate('about')} className="cursor-pointer hover:text-white transition-colors">{t('footer.shopAbout')}</a></li>
-                            <li><a onClick={() => onNavigate('contact')} className="cursor-pointer hover:text-white transition-colors">{t('footer.shopContact')}</a></li>
+                    {/* Quick Navigation */}
+                    <div className="lg:col-span-3">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 mb-4">Navigasi Utama</h3>
+                        <ul className="space-y-2.5 text-xs">
+                            <li><a onClick={() => onNavigate('allProducts')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopProducts')}</a></li>
+                            <li><a onClick={() => onNavigate('vouchers')} className="cursor-pointer hover:text-amber-400 transition-colors">Kupon Promo</a></li>
+                            <li><a onClick={() => onNavigate('about')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopAbout')}</a></li>
+                            <li><a onClick={() => onNavigate('contact')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopContact')}</a></li>
                         </ul>
                     </div>
 
-                    <div className="lg:col-span-2">
-                        <h3 className="text-lg font-semibold text-white mb-4">{t('footer.helpTitle')}</h3>
-                        <ul className="space-y-2 text-sm">
-                            <li><a href="#" className="hover:text-white transition-colors">{t('footer.helpPrivacy')}</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">{t('footer.helpTerms')}</a></li>
-                            <li><a href="#" className="hover:text-white transition-colors">{t('footer.helpFAQ')}</a></li>
-                        </ul>
-                    </div>
-
-                    <div className="lg:col-span-4 lg:text-right">
-                         <h3 className="text-lg font-semibold text-white mb-4">{t('footer.socialTitle')}</h3>
-                         <div className="flex lg:justify-end space-x-4 mb-4">
+                    {/* Social Media & Admin Shortcut */}
+                    <div className="lg:col-span-4 lg:text-right space-y-4">
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 mb-4">{t('footer.socialTitle')}</h3>
+                        <div className="flex lg:justify-end gap-3">
                             {SOCIAL_LINKS.slice(0, 4).map(link => (
-                                <a key={link.name} href={link.url} target="_blank" rel="noopener noreferrer" className="text-brand-accent hover:text-white transition-colors" aria-label={link.name}>
-                                    <link.icon className="h-6 w-6" />
+                                <a
+                                    key={link.name}
+                                    href={link.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2.5 rounded-full bg-stone-900 border border-stone-800 text-stone-300 hover:text-amber-400 hover:border-amber-500/40 transition-all"
+                                    aria-label={link.name}
+                                >
+                                    <link.icon className="h-4 w-4" />
                                 </a>
                             ))}
                         </div>
-                        <p className="text-sm">{t('footer.socialTagline')}</p>
+                        <p className="text-xs text-stone-400">{t('footer.socialTagline')}</p>
                     </div>
                 </div>
 
-                <div className="mt-12 border-t border-white/10 pt-8 text-center text-sm">
-                    <p onClick={onAdminTrigger} className="cursor-pointer" title="Secret Admin Access">
+                <div className="mt-12 border-t border-stone-800/80 pt-8 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-stone-400 gap-4">
+                    <p onClick={onAdminTrigger} className="cursor-pointer hover:text-amber-400 transition-colors" title="Secret Admin Access">
                         &copy; {new Date().getFullYear()} Tapak Pamungkas. {t('footer.copyright')}.
                     </p>
+                    <div className="flex gap-4 text-[11px]">
+                        <span>Privasi & Keamanan</span>
+                        <span>•</span>
+                        <span>Syarat & Ketentuan</span>
+                    </div>
                 </div>
             </div>
         </footer>
