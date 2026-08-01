@@ -5,40 +5,8 @@
     "installCommand": "npm install",
     "rewrites": [
         {
-            "source": "/api/login",
-            "destination": "/api/login"
-        },
-        {
-            "source": "/api/register",
-            "destination": "/api/register"
-        },
-        {
-            "source": "/api/products(.*)",
-            "destination": "/api/products"
-        },
-        {
-            "source": "/api/users(.*)",
-            "destination": "/api/users"
-        },
-        {
-            "source": "/api/cart(.*)",
-            "destination": "/api/cart"
-        },
-        {
-            "source": "/api/orders(.*)",
-            "destination": "/api/orders"
-        },
-        {
-            "source": "/api/wishlist(.*)",
-            "destination": "/api/wishlist"
-        },
-        {
-            "source": "/api/vouchers(.*)",
-            "destination": "/api/vouchers"
-        },
-        {
-            "source": "/api/ongkir(.*)",
-            "destination": "/api/ongkir"
+            "source": "/api/(.*)",
+            "destination": "/api/index"
         },
         {
             "source": "/sitemap.xml",
@@ -49,12 +17,8 @@
             "destination": "/api/index"
         },
         {
-            "source": "/api/(.*)",
-            "destination": "/api/index"
-        },
-        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
     ]
-}
+}

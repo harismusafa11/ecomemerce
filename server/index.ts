@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 
 // CORS configuration
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://tapakpamungkas.com', 'https://www.tapakpamungkas.com']
+    ? ['https://tapakpamungkas.my.id', 'https://www.tapakpamungkas.my.id', 'https://tapakpamungkas.com', 'https://www.tapakpamungkas.com']
     : ['http://localhost:5173', 'http://localhost:3000'];
 
 // Allow all origins in production for Vercel preview/deployments if not matching specific domains
