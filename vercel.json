@@ -1,4 +1,8 @@
 {
+    "version": 2,
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
+    "installCommand": "npm install",
     "rewrites": [
         {
             "source": "/api/login",
@@ -33,16 +37,24 @@
             "destination": "/api/vouchers"
         },
         {
-            "source": "/api/(.*)",
+            "source": "/api/ongkir(.*)",
+            "destination": "/api/ongkir"
+        },
+        {
+            "source": "/sitemap.xml",
             "destination": "/api/index"
         },
         {
-            "source": "/googleb9714a73ff1213d2.html",
-            "destination": "/public/googleb9714a73ff1213d2.html"
+            "source": "/robots.txt",
+            "destination": "/api/index"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index"
         },
         {
             "source": "/(.*)",
             "destination": "/index.html"
         }
     ]
-}
+}
