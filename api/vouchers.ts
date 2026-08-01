@@ -16,8 +16,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         // GET /api/vouchers - Get all vouchers
         if (req.method === 'GET') {
-            console.log('[VOUCHERS] Fetching all vouchers');
-
             const vouchers = await prisma.voucher.findMany({
                 select: {
                     id: true,
@@ -25,7 +23,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     discountPercentage: true,
                     startDate: true,
                     endDate: true,
-                    productId: true,
                     createdAt: true,
                     updatedAt: true
                 },
@@ -34,15 +31,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             });
 
-            console.log('[VOUCHERS] Found:', vouchers.length, 'vouchers');
             return res.status(200).json(vouchers);
         }
 
         // POST /api/vouchers - Create new voucher
         if (req.method === 'POST') {
-            const { code, discountPercentage, startDate, endDate, productId } = req.body;
-
-            console.log('[VOUCHERS] Creating voucher:', code);
+            const { code, discountPercentage, startDate, endDate } = req.body || {};
 
             if (!code || !discountPercentage || !startDate || !endDate) {
                 return res.status(400).json({ error: 'code, discountPercentage, startDate, and endDate required' });
@@ -50,11 +44,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const voucher = await prisma.voucher.create({
                 data: {
-                    code,
+                    code: String(code).trim().toUpperCase(),
                     discountPercentage: Number(discountPercentage),
                     startDate: new Date(startDate),
                     endDate: new Date(endDate),
-                    productId: productId || null,
                 },
                 select: {
                     id: true,
@@ -62,35 +55,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     discountPercentage: true,
                     startDate: true,
                     endDate: true,
-                    productId: true,
                     createdAt: true,
                     updatedAt: true
                 }
             });
 
-            console.log('[VOUCHERS] Voucher created:', voucher.id);
             return res.status(201).json(voucher);
         }
 
         // PUT /api/vouchers?id=X - Update voucher
         if (req.method === 'PUT') {
-            const voucherId = req.query.id ? Number(req.query.id) : null;
-            const { code, discountPercentage, startDate, endDate, productId } = req.body;
+            const voucherId = req.query.id ? Number(req.query.id) : (req.body?.id ? Number(req.body.id) : null);
+            const { code, discountPercentage, startDate, endDate } = req.body || {};
 
-            if (!voucherId) {
+            if (!voucherId || isNaN(voucherId)) {
                 return res.status(400).json({ error: 'Voucher ID required' });
             }
-
-            console.log('[VOUCHERS] Updating voucher:', voucherId);
 
             const voucher = await prisma.voucher.update({
                 where: { id: voucherId },
                 data: {
-                    code: code || undefined,
+                    code: code ? String(code).trim().toUpperCase() : undefined,
                     discountPercentage: discountPercentage ? Number(discountPercentage) : undefined,
                     startDate: startDate ? new Date(startDate) : undefined,
                     endDate: endDate ? new Date(endDate) : undefined,
-                    productId: productId !== undefined ? productId : undefined,
                 },
                 select: {
                     id: true,
@@ -98,13 +86,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     discountPercentage: true,
                     startDate: true,
                     endDate: true,
-                    productId: true,
                     createdAt: true,
                     updatedAt: true
                 }
             });
 
-            console.log('[VOUCHERS] Voucher updated:', voucher.id);
             return res.status(200).json(voucher);
         }
 
@@ -112,30 +98,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.method === 'DELETE') {
             const voucherId = req.query.id ? Number(req.query.id) : null;
 
-            if (!voucherId) {
+            if (!voucherId || isNaN(voucherId)) {
                 return res.status(400).json({ error: 'Voucher ID required' });
             }
-
-            console.log('[VOUCHERS] Deleting voucher:', voucherId);
 
             await prisma.voucher.delete({
                 where: { id: voucherId }
             });
 
-            console.log('[VOUCHERS] Voucher deleted:', voucherId);
             return res.status(200).json({ message: 'Voucher deleted successfully' });
         }
 
         return res.status(405).json({ error: 'Method not allowed' });
 
     } catch (error) {
-        console.error('[VOUCHERS] Error:', error);
-
-        return res.status(500).json({
-            error: 'Voucher operation failed',
-            message: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
+        console.error('[VOUCHERS ERROR]', error);
+        return res.status(500).json({ error: 'Internal server error', details: String(error) });
     } finally {
         await prisma.$disconnect();
     }

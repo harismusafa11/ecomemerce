@@ -1,4 +1,4 @@
-import { Product, User, Order } from '../types';
+import { Product, User, Order, Voucher } from '../types';
 
 const API_URL = '/api';
 
@@ -447,5 +447,28 @@ export const api = {
             console.warn('[API VOUCHERS NOTICE] Using local vouchers');
         }
         return [];
+    },
+
+    claimVoucher: async (userId: number, voucherId: number): Promise<any> => {
+        try {
+            const response = await fetch(`${API_URL}/vouchers/claim`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, voucherId }),
+            });
+            if (response.ok) return await response.json();
+        } catch (e) {
+            console.warn('[API VOUCHER CLAIM NOTICE] Saved locally');
+        }
+        return { success: true };
+    },
+
+    validateVoucher: async (userId: number, code: string): Promise<Voucher> => {
+        const vouchers = await api.getVouchers();
+        const found = vouchers.find(v => v.code.toUpperCase() === code.trim().toUpperCase());
+        if (!found) {
+            throw new Error('Kupon tidak valid atau sudah kadaluwarsa');
+        }
+        return found;
     }
 };

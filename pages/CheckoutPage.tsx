@@ -85,7 +85,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cartItems, onPlaceOrder, on
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (Object.values(shippingInfo).some(val => val.trim() === '')) {
+        if (Object.values(shippingInfo).some(val => String(val).trim() === '')) {
             alert(t('checkout.alertFillShipping'));
             return;
         }

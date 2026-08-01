@@ -14,34 +14,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = req.query.userId ? Number(req.query.userId) : null;
 
     try {
-        // GET /api/wishlist?userId=X - Get user's wishlist
+        // GET /api/wishlist?userId=X - Get user's wishlist items
         if (req.method === 'GET') {
             if (!userId || isNaN(userId)) {
                 return safeErrorResponse(res, 400, 'userId valid wajib diisi');
             }
 
-            const wishlistItems = await prisma.wishlist.findMany({
+            const wishlist = await prisma.wishlist.findUnique({
                 where: { userId },
-                select: {
-                    id: true,
-                    userId: true,
-                    productId: true,
-                    createdAt: true,
-                    product: {
-                        select: {
-                            id: true,
-                            name: true,
-                            description: true,
-                            price: true,
-                            stock: true,
-                            category: true,
-                            imageUrls: true
+                include: {
+                    items: {
+                        include: {
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    description: true,
+                                    price: true,
+                                    stock: true,
+                                    category: true,
+                                    imageUrls: true
+                                }
+                            }
                         }
                     }
                 }
             });
 
-            return res.status(200).json(wishlistItems);
+            return res.status(200).json(wishlist ? wishlist.items : []);
         }
 
         // POST /api/wishlist - Add item to wishlist
@@ -55,23 +55,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return safeErrorResponse(res, 400, 'userId dan productId wajib diisi');
             }
 
-            const wishlistItem = await prisma.wishlist.upsert({
+            let wishlist = await prisma.wishlist.findUnique({ where: { userId: numUserId } });
+            if (!wishlist) {
+                wishlist = await prisma.wishlist.create({ data: { userId: numUserId } });
+            }
+
+            const wishlistItem = await prisma.wishlistItem.upsert({
                 where: {
-                    userId_productId: {
-                        userId: numUserId,
+                    wishlistId_productId: {
+                        wishlistId: wishlist.id,
                         productId: numProductId,
                     },
                 },
                 update: {},
                 create: {
-                    userId: numUserId,
+                    wishlistId: wishlist.id,
                     productId: numProductId,
                 },
-                select: {
-                    id: true,
-                    userId: true,
-                    productId: true,
-                    createdAt: true
+                include: {
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                            price: true,
+                            imageUrls: true
+                        }
+                    }
                 }
             });
 
@@ -86,12 +95,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return safeErrorResponse(res, 400, 'userId dan productId wajib diisi');
             }
 
-            await prisma.wishlist.deleteMany({
-                where: {
-                    userId: userId,
-                    productId: numProductId,
-                },
-            });
+            const wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+            if (wishlist) {
+                await prisma.wishlistItem.deleteMany({
+                    where: {
+                        wishlistId: wishlist.id,
+                        productId: numProductId,
+                    },
+                });
+            }
 
             return res.status(200).json({ message: 'Item berhasil dihapus dari wishlist' });
         }
@@ -99,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
 
     } catch (error) {
-        return safeErrorResponse(res, 500, 'Gagal memproses wishlist', error);
+        return safeErrorResponse(res, 500, 'Gagal memproses data wishlist', error);
     } finally {
         await prisma.$disconnect();
     }
