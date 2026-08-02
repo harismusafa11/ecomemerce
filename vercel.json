@@ -4,15 +4,11 @@
     "outputDirectory": "dist",
     "installCommand": "npm install",
     "functions": {
-        "api/index.ts": {
+        "api/**/*.ts": {
             "includeFiles": "server/**"
         }
     },
     "rewrites": [
-        {
-            "source": "/api/(.*)",
-            "destination": "/api/index?path=$1"
-        },
         {
             "source": "/sitemap.xml",
             "destination": "/api/index?path=sitemap.xml"
@@ -22,7 +18,7 @@
             "destination": "/api/index?path=robots.txt"
         },
         {
-            "source": "/(.*)",
+            "source": "/((?!api/).*)",
             "destination": "/index.html"
         }
     ]

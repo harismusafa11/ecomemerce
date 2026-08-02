@@ -120,12 +120,24 @@ function calculateSmartRates(province: string, city: string, weightGrams: number
     ];
 }
 
+import { DEFAULT_PRODUCTS } from './defaultProducts';
+
 export const api = {
     // Products
     getProducts: async (): Promise<Product[]> => {
-        const response = await fetch(`${API_URL}/products`);
-        if (!response.ok) throw new Error('Failed to fetch products');
-        return response.json();
+        try {
+            const response = await fetch(`${API_URL}/products`);
+            if (response.ok) {
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    return data;
+                }
+            }
+            return DEFAULT_PRODUCTS;
+        } catch (error) {
+            console.error('getProducts fetch error, returning default catalog:', error);
+            return DEFAULT_PRODUCTS;
+        }
     },
 
     getProduct: async (id: number): Promise<Product> => {
