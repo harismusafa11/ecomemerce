@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import prisma from './db';
 import { hashPassword, verifyPassword, sanitizeUser, isValidEmail } from '../lib/security';
 
+// Prisma Postgres Database Integration - Connected
 dotenv.config();
 
 const app = express();
