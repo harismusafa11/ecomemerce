@@ -11,15 +11,15 @@
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "/api/index"
+            "destination": "/api/index?path=$1"
         },
         {
             "source": "/sitemap.xml",
-            "destination": "/api/index"
+            "destination": "/api/index?path=sitemap.xml"
         },
         {
             "source": "/robots.txt",
-            "destination": "/api/index"
+            "destination": "/api/index?path=robots.txt"
         },
         {
             "source": "/(.*)",
