@@ -30,8 +30,10 @@ const HomePage: React.FC<HomePageProps> = ({
 
     const categories = [
         { id: 'all', name: 'Semua Koleksi' },
-        { id: 'Pusaka & Keris', name: 'Pusaka & Keris' },
+        { id: 'Keilmuan', name: 'Keilmuan' },
         { id: 'Media Bertuah', name: 'Media Bertuah' },
+        { id: 'Media Herbal', name: 'Media Herbal' },
+        { id: 'Pusaka & Keris', name: 'Pusaka & Keris' },
         { id: 'Herbal & Keilmuan', name: 'Herbal & Keilmuan' },
     ];
 

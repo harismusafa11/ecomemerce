@@ -5,6 +5,8 @@ export const CATEGORIES = [
     'Keilmuan',
     'Media Bertuah',
     'Media Herbal',
+    'Pusaka & Keris',
+    'Herbal & Keilmuan',
 ];
 
 export interface SocialChannel extends SocialLink {
