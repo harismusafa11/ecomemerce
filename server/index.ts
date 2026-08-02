@@ -66,7 +66,7 @@ import { auth } from '../lib/auth.js';
 app.use(express.json({ limit: '10mb' }));
 
 // Better Auth Router
-app.all('/api/auth/*', toNodeHandler(auth));
+app.use('/api/auth', toNodeHandler(auth));
 
 // Rate limiting (simple implementation)
 const requestCounts = new Map();
