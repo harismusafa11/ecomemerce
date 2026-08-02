@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import prisma from './db.ts';
-import { hashPassword, verifyPassword, sanitizeUser, isValidEmail } from '../lib/security.ts';
+import prisma from './db.js';
+import { hashPassword, verifyPassword, sanitizeUser, isValidEmail } from '../lib/security.js';
 
 // Prisma Postgres Database Integration - Connected
 dotenv.config();
@@ -61,7 +61,7 @@ app.use(cors({
 }));
 
 import { toNodeHandler } from 'better-auth/node';
-import { auth } from '../lib/auth.ts';
+import { auth } from '../lib/auth.js';
 
 app.use(express.json({ limit: '10mb' }));
 

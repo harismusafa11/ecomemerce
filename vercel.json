@@ -5,7 +5,7 @@
     "installCommand": "npm install",
     "functions": {
         "api/**/*.ts": {
-            "includeFiles": "server/**"
+            "includeFiles": "{server,lib,prisma}/**"
         }
     },
     "rewrites": [

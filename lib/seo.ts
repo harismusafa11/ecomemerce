@@ -1,4 +1,4 @@
-import { Product } from '../types.ts';
+import { Product } from '../types.js';
 
 /**
  * Convert string to URL-friendly slug

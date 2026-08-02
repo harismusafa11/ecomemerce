@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import app from '../server/index.ts';
+import app from '../server/index.js';
 
 // Vercel native catch-all handler for /api/* routes
 export default async function handler(req: VercelRequest, res: VercelResponse) {
