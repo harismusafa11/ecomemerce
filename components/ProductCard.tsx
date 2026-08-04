@@ -2,9 +2,8 @@ import React, { useState, useRef, memo } from 'react';
 import { Product } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion } from 'framer-motion';
-import { Eye, Heart, ShoppingBag, CheckCircle, ZoomIn } from 'lucide-react';
+import { Eye, Heart, ShoppingBag, CheckCircle } from 'lucide-react';
 import LazyImage from './ui/LazyImage';
-import ImageLightbox from './ui/ImageLightbox';
 
 interface ProductCardProps {
     product: Product;
@@ -24,16 +23,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     onQuickView
 }) => {
     const [isAdded, setIsAdded] = useState(false);
-    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-    const [lightboxIndex, setLightboxIndex] = useState(0);
     const imageRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslations();
-
-    const handleImageEnlarge = (e: React.MouseEvent, index = 0) => {
-        e.stopPropagation();
-        setLightboxIndex(index);
-        setIsLightboxOpen(true);
-    };
 
     const handleAddToCartClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -57,9 +48,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     };
 
     return (
-        <>
-            <motion.div
-                onClick={onClick}
+        <motion.div
+            onClick={onClick}
             className="product-card-3d relative group glass-panel rounded-2xl overflow-hidden cursor-pointer flex flex-col h-full border border-amber-500/20 hover:border-amber-500/50 shadow-xl transition-all duration-300"
             whileHover={{ y: -6 }}
             layout
@@ -69,7 +59,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
             <div className="relative z-10 flex flex-col h-full">
                 {/* Image Showcase */}
-                <div ref={imageRef} onClick={(e) => handleImageEnlarge(e)} className="relative aspect-square w-full bg-stone-950/80 overflow-hidden p-4 flex items-center justify-center cursor-zoom-in">
+                <div ref={imageRef} className="relative aspect-square w-full bg-stone-950/80 overflow-hidden p-4 flex items-center justify-center">
                     <LazyImage
                         src={product.imageUrls[0]}
                         alt={`Foto Asli ${product.name} - ${product.category} Tapak Pamungkas`}
@@ -90,16 +80,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
                             </span>
                         )}
                     </div>
-
-                    {/* Zoom Button */}
-                    <button
-                        onClick={(e) => handleImageEnlarge(e)}
-                        className="absolute bottom-3 right-3 z-20 p-2 rounded-full bg-stone-900/70 text-stone-300 border border-stone-700 hover:text-amber-400 hover:border-amber-500/50 backdrop-blur-md transition-all opacity-0 group-hover:opacity-100"
-                        title="Perbesar Foto"
-                        aria-label="Perbesar Foto"
-                    >
-                        <ZoomIn className="w-4 h-4" />
-                    </button>
 
                     {/* Floating Action Buttons */}
                     <div className="absolute top-3 right-3 flex flex-col gap-2 z-20">
@@ -175,16 +155,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     </div>
                 </div>
             </div>
-            </motion.div>
-
-            {/* Image Lightbox */}
-            <ImageLightbox
-                images={product.imageUrls}
-                initialIndex={lightboxIndex}
-                isOpen={isLightboxOpen}
-                onClose={() => setIsLightboxOpen(false)}
-            />
-        </>
+        </motion.div>
     );
 };
 

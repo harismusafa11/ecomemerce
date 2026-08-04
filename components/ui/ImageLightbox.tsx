@@ -139,7 +139,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                     {/* Image Container */}
                     <div
                         className="absolute inset-0 flex items-center justify-center p-4"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={onClose}
                     >
                         {/* Loading Spinner */}
                         {imageLoading && (
@@ -170,6 +170,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                             transition={{ duration: 0.3 }}
                             onLoad={handleImageLoad}
                             onError={handleImageError}
+                            onClick={(e) => e.stopPropagation()}
                             className="max-w-[85vw] max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
                             style={{ display: imageError ? 'none' : 'block' }}
                         />
