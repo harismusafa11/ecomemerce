@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Product, Voucher } from '../types';
+import { Product, Voucher, Review, User } from '../types';
 import Carousel from '../components/ui/carousel';
 import ProductCard from '../components/ProductCard';
 import VoucherCard from '../components/VoucherCard';
 import ImageLightbox from '../components/ui/ImageLightbox';
 import { useTranslations } from '../hooks/useTranslations';
-import { ArrowLeft, ShoppingBag, Heart, MessageCircle, ShieldCheck, CheckCircle2, Award, Truck, ChevronRight, Share2, Info, Sparkles, Crown } from 'lucide-react';
+import { api } from '../services/api';
+import { ArrowLeft, ShoppingBag, Heart, MessageCircle, ShieldCheck, CheckCircle2, Award, Truck, ChevronRight, Share2, Info, Sparkles, Crown, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProductDetailPageProps {
@@ -19,6 +20,8 @@ interface ProductDetailPageProps {
     vouchers: Voucher[];
     claimedVouchers: number[];
     onClaimVoucher: (voucherId: number) => void;
+    currentUser?: User | null;
+    onNavigate?: (page: any) => void;
 }
 
 const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
@@ -31,7 +34,9 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     onToggleWishlist,
     vouchers,
     claimedVouchers,
-    onClaimVoucher
+    onClaimVoucher,
+    currentUser,
+    onNavigate
 }) => {
     const [isAdded, setIsAdded] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -40,11 +45,67 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const { t } = useTranslations();
 
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [averageRating, setAverageRating] = useState(0);
+    const [totalReviews, setTotalReviews] = useState(0);
+    const [rating, setRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
+    const [comment, setComment] = useState('');
+    const [reviewError, setReviewError] = useState('');
+    const [reviewSuccess, setReviewSuccess] = useState('');
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
     useEffect(() => {
         setIsAdded(false);
         setIsLightboxOpen(false);
         setActiveTab('desc');
     }, [product]);
+
+    useEffect(() => {
+        if (product && product.id) {
+            api.trackProductView(product.id, currentUser?.id ?? null);
+            loadReviews(product.id);
+        }
+    }, [product?.id]);
+
+    const loadReviews = async (productId: number) => {
+        try {
+            const data = await api.getReviews(productId);
+            setReviews(data.reviews);
+            setAverageRating(data.averageRating);
+            setTotalReviews(data.totalReviews);
+        } catch (e) {
+            setReviews([]);
+            setAverageRating(0);
+            setTotalReviews(0);
+        }
+    };
+
+    const handleSubmitReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setReviewError('');
+        setReviewSuccess('');
+        if (!currentUser) {
+            setReviewError('Silakan masuk terlebih dahulu untuk memberi ulasan.');
+            return;
+        }
+        if (rating < 1) {
+            setReviewError('Silakan pilih rating bintang terlebih dahulu.');
+            return;
+        }
+        setIsSubmittingReview(true);
+        try {
+            await api.addReview(product.id, currentUser.id, rating, comment.trim());
+            setReviewSuccess('Ulasan berhasil disimpan. Terima kasih!');
+            setRating(0);
+            setComment('');
+            await loadReviews(product.id);
+        } catch (err: any) {
+            setReviewError(err?.message || 'Gagal menyimpan ulasan. Silakan coba lagi.');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
 
     if (!product) {
         return (
@@ -361,6 +422,127 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                         </div>
                     </div>
                 )}
+
+                {/* Reviews & Ratings Section */}
+                <section className="mt-16 glass-panel p-6 sm:p-8 rounded-3xl border border-amber-500/20 shadow-xl">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <h2 className="text-2xl font-serif font-bold text-stone-100">Ulasan & Pengalaman</h2>
+                        {totalReviews > 0 && (
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <Star
+                                            key={star}
+                                            className={`w-4 h-4 ${star <= Math.round(averageRating) ? 'text-amber-400 fill-amber-400' : 'text-stone-700'}`}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-xs font-mono text-stone-300">
+                                    {averageRating.toFixed(1)} / 5 ({totalReviews} ulasan)
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Review Form */}
+                    <div className="mb-8 p-4 rounded-2xl bg-stone-900/70 border border-stone-800">
+                        {currentUser ? (
+                            <form onSubmit={handleSubmitReview} className="space-y-3">
+                                <div className="flex items-center gap-1">
+                                    <span className="text-xs font-mono text-stone-400 mr-2">Rating:</span>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setRating(star)}
+                                            onMouseEnter={() => setHoverRating(star)}
+                                            onMouseLeave={() => setHoverRating(0)}
+                                            className="p-0.5 transition-transform hover:scale-125"
+                                            aria-label={`${star} bintang`}
+                                        >
+                                            <Star
+                                                className={`w-6 h-6 ${star <= (hoverRating || rating) ? 'text-amber-400 fill-amber-400' : 'text-stone-600'}`}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    placeholder="Tulis pengalaman dan kesan Anda terhadap pusaka ini..."
+                                    rows={3}
+                                    className="w-full px-4 py-3 bg-stone-900 border border-stone-700 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500 resize-none"
+                                />
+                                {reviewError && (
+                                    <p className="text-xs font-mono text-rose-400">{reviewError}</p>
+                                )}
+                                {reviewSuccess && (
+                                    <p className="text-xs font-mono text-emerald-400">{reviewSuccess}</p>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={isSubmittingReview}
+                                    className="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-stone-950 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 transition-all flex items-center gap-2"
+                                >
+                                    <Star className="w-3.5 h-3.5" />
+                                    {isSubmittingReview ? 'Menyimpan...' : 'Kirim Ulasan'}
+                                </button>
+                            </form>
+                        ) : (
+                            <div className="text-center py-4">
+                                <p className="text-xs font-mono text-stone-400 mb-3">
+                                    Silakan masuk untuk berbagi pengalaman Anda memaharkan pusaka ini.
+                                </p>
+                                <button
+                                    onClick={() => onNavigate && onNavigate('login')}
+                                    className="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-stone-950 bg-amber-500 hover:bg-amber-400 transition-all"
+                                >
+                                    Masuk untuk Beri Ulasan
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Review List */}
+                    {reviews.length > 0 ? (
+                        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                            {reviews.map(review => (
+                                <div key={review.id} className="p-4 rounded-2xl bg-stone-900/50 border border-stone-800">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xs">
+                                                {(review.user?.name || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="text-xs font-semibold text-stone-200">
+                                                {review.user?.name || 'Pengguna'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-0.5">
+                                                {[1, 2, 3, 4, 5].map(star => (
+                                                    <Star
+                                                        key={star}
+                                                        className={`w-3 h-3 ${star <= review.rating ? 'text-amber-400 fill-amber-400' : 'text-stone-700'}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[10px] font-mono text-stone-500">
+                                                {new Date(review.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {review.comment && (
+                                        <p className="text-xs text-stone-300 leading-relaxed">{review.comment}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-center text-xs font-mono text-stone-500 py-6">
+                            Belum ada ulasan untuk pusaka ini. Jadilah yang pertama berbagi pengalaman.
+                        </p>
+                    )}
+                </section>
 
                 {/* Related Products Section */}
                 {relatedProducts.length > 0 && (

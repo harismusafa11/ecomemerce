@@ -24,6 +24,9 @@ model User {
   addresses       UserAddress[]
   sessions        Session[]
   accounts        Account[]
+  productViews    ProductView[]
+  searchLogs      SearchLog[]
+  reviews         Review[]
 }
 
 model UserAddress {
@@ -95,6 +98,41 @@ model Product {
   vouchers      Voucher[]
   cartItems     CartItem[]
   wishlistItems WishlistItem[]
+  productViews  ProductView[]
+  reviews       Review[]
+}
+
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model SearchLog {
+  id          Int      @id @default(autoincrement())
+  query       String
+  resultCount Int      @default(0)
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([productId, userId])
 }
 
 model Order {

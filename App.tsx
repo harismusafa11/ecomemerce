@@ -359,6 +359,13 @@ const AppContent: React.FC = () => {
         const params = new URLSearchParams();
         if (query.trim()) {
             params.set('q', query);
+            const q = query.trim().toLowerCase();
+            const resultCount = products.filter(p =>
+                p.name.toLowerCase().includes(q) ||
+                p.description.toLowerCase().includes(q) ||
+                p.category.toLowerCase().includes(q)
+            ).length;
+            api.trackSearch(query.trim(), resultCount, currentUser?.id ?? null);
         }
         const qs = params.toString();
         if (currentPage !== 'allProducts') {
@@ -367,7 +374,7 @@ const AppContent: React.FC = () => {
         } else {
             window.history.replaceState(null, '', `/katalog${qs ? `?${qs}` : ''}`);
         }
-    }, [currentPage, handleNavigate]);
+    }, [currentPage, handleNavigate, products, currentUser]);
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
@@ -667,6 +674,8 @@ const AppContent: React.FC = () => {
                     vouchers={allVouchers}
                     claimedVouchers={claimedVouchers}
                     onClaimVoucher={handleClaimVoucher}
+                    currentUser={currentUser}
+                    onNavigate={handleNavigate}
                 />;
             case 'cart':
                 return <CartPage cartItems={cartItems} onRemoveFromCart={handleRemoveFromCart} onCheckout={() => handleNavigate('checkout')} />;

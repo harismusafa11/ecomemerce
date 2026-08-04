@@ -1,4 +1,4 @@
-import { Product, User, Order, Voucher } from '../types';
+import { Product, User, Order, Voucher, Review } from '../types';
 
 const API_URL = '/api';
 
@@ -473,5 +473,55 @@ export const api = {
             throw new Error('Kupon tidak valid atau sudah kadaluwarsa');
         }
         return found;
+    },
+
+    trackProductView: async (productId: number, userId?: number | null): Promise<void> => {
+        try {
+            await fetch(`${API_URL}/product-views`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId, userId: userId || null }),
+            });
+        } catch (e) {
+        }
+    },
+
+    getPopularProducts: async (limit: number = 10): Promise<{ product: Product; views: number }[]> => {
+        try {
+            const response = await fetch(`${API_URL}/products/popular?limit=${limit}`);
+            if (response.ok) return await response.json();
+        } catch (e) {
+        }
+        return [];
+    },
+
+    trackSearch: async (query: string, resultCount: number, userId?: number | null): Promise<void> => {
+        try {
+            await fetch(`${API_URL}/search-logs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, resultCount, userId: userId || null }),
+            });
+        } catch (e) {
+        }
+    },
+
+    getReviews: async (productId: number): Promise<{ reviews: Review[]; averageRating: number; totalReviews: number }> => {
+        const response = await fetch(`${API_URL}/reviews/product/${productId}`);
+        if (!response.ok) throw new Error('Failed to fetch reviews');
+        return response.json();
+    },
+
+    addReview: async (productId: number, userId: number, rating: number, comment: string): Promise<Review> => {
+        const response = await fetch(`${API_URL}/reviews`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, userId, rating, comment }),
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to save review');
+        }
+        return response.json();
     }
 };

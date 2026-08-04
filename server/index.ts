@@ -189,6 +189,138 @@ app.put('/api/products', handleProductUpdate);
 app.delete('/api/products/:id', handleProductDelete);
 app.delete('/api/products', handleProductDelete);
 
+// --- PRODUCT VIEWS (analytics) ---
+app.post('/api/product-views', async (req, res) => {
+    try {
+        const { productId, userId } = req.body || {};
+        const id = Number(productId);
+        if (isNaN(id)) return res.status(400).json({ error: 'Invalid product ID' });
+
+        const forwarded = req.headers['x-forwarded-for'];
+        const ip = req.ip || (forwarded ? String(forwarded).split(',')[0].trim() : null);
+
+        await prisma.productView.create({
+            data: {
+                productId: id,
+                userId: userId ? Number(userId) : null,
+                ip: ip ? String(ip).slice(0, 45) : null,
+                userAgent: req.headers['user-agent'] ? String(req.headers['user-agent']).slice(0, 300) : null,
+            },
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Product view tracking error:', error);
+        res.status(500).json({ error: 'Failed to track product view' });
+    }
+});
+
+app.get('/api/products/popular', async (req, res) => {
+    try {
+        const limit = Math.min(Number(req.query.limit) || 10, 50);
+        const popular = await prisma.productView.groupBy({
+            by: ['productId'],
+            _count: { productId: true },
+            orderBy: { _count: { productId: 'desc' } },
+            take: limit,
+        });
+        const productIds = popular.map(p => p.productId);
+        const products = await prisma.product.findMany({
+            where: { id: { in: productIds } },
+        });
+        const productsById = new Map(products.map(p => [p.id, p]));
+        const result = popular
+            .map(p => ({ product: productsById.get(p.productId), views: p._count.productId }))
+            .filter(p => p.product);
+        res.json(result);
+    } catch (error) {
+        console.error('Popular products error:', error);
+        res.status(500).json({ error: 'Failed to fetch popular products' });
+    }
+});
+
+// --- SEARCH LOGS (analytics) ---
+app.post('/api/search-logs', async (req, res) => {
+    try {
+        const { query, resultCount, userId } = req.body || {};
+        if (!query || !String(query).trim()) return res.status(400).json({ error: 'Query required' });
+        await prisma.searchLog.create({
+            data: {
+                query: String(query).trim().slice(0, 200),
+                resultCount: Number(resultCount) || 0,
+                userId: userId ? Number(userId) : null,
+            },
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Search log error:', error);
+        res.status(500).json({ error: 'Failed to log search' });
+    }
+});
+
+// --- REVIEWS ---
+app.get('/api/reviews/product/:productId', async (req, res) => {
+    try {
+        const productId = Number(req.params.productId);
+        if (isNaN(productId)) return res.status(400).json({ error: 'Invalid product ID' });
+        const reviews = await prisma.review.findMany({
+            where: { productId },
+            include: { user: { select: { id: true, name: true } } },
+            orderBy: { createdAt: 'desc' },
+        });
+        const count = await prisma.review.count({ where: { productId } });
+        const avg = count > 0
+            ? (await prisma.review.aggregate({ where: { productId }, _avg: { rating: true } }))._avg.rating
+            : 0;
+        res.json({ reviews, averageRating: avg ? Math.round(avg * 10) / 10 : 0, totalReviews: count });
+    } catch (error) {
+        console.error('Fetch reviews error:', error);
+        res.status(500).json({ error: 'Failed to fetch reviews' });
+    }
+});
+
+app.post('/api/reviews', async (req, res) => {
+    try {
+        const { productId, userId, rating, comment } = req.body || {};
+        const id = Number(productId);
+        const uid = Number(userId);
+        const rate = Number(rating);
+        if (isNaN(id) || isNaN(uid) || isNaN(rate)) {
+            return res.status(400).json({ error: 'productId, userId, and rating are required' });
+        }
+        if (rate < 1 || rate > 5) {
+            return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+        }
+
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+
+        const existing = await prisma.review.findUnique({
+            where: { productId_userId: { productId: id, userId: uid } },
+        });
+        const review = existing
+            ? await prisma.review.update({
+                where: { id: existing.id },
+                data: {
+                    rating: rate,
+                    comment: comment ? String(comment).trim().slice(0, 1000) : null,
+                },
+            })
+            : await prisma.review.create({
+                data: {
+                    productId: id,
+                    userId: uid,
+                    rating: rate,
+                    comment: comment ? String(comment).trim().slice(0, 1000) : null,
+                },
+            });
+
+        res.json(review);
+    } catch (error) {
+        console.error('Create review error:', error);
+        res.status(500).json({ error: 'Failed to save review' });
+    }
+});
+
 // --- USERS ---
 // --- USERS & AUTHENTICATION ---
 app.post('/api/login', async (req, res) => {

@@ -53,6 +53,16 @@ export interface Voucher {
   productId?: number; // Applied to a specific product, optional for store-wide
 }
 
+export interface Review {
+  id: number;
+  productId: number;
+  userId: number;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+  user?: { id: number; name: string };
+}
+
 export interface SocialLink {
   name: string;
   url: string;
