@@ -854,17 +854,20 @@ app.get('/sitemap.xml', async (req, res) => {
     try {
         const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
         const products = await prisma.product.findMany({
-            select: { id: true, name: true, updatedAt: true, imageUrls: true }
+            select: { id: true, name: true, updatedAt: true, imageUrls: true, category: true }
         });
 
         const slugifyLocal = (text: string) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+        const xmlEscape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+        const lastmodNow = new Date().toISOString();
 
         const staticPages = [
             { url: `${baseUrl}/`, priority: '1.0', changefreq: 'daily' },
-            { url: `${baseUrl}/#/katalog`, priority: '0.9', changefreq: 'daily' },
-            { url: `${baseUrl}/#/tentang-kami`, priority: '0.8', changefreq: 'weekly' },
-            { url: `${baseUrl}/#/kontak`, priority: '0.8', changefreq: 'weekly' },
-            { url: `${baseUrl}/#/kupon`, priority: '0.7', changefreq: 'weekly' },
+            { url: `${baseUrl}/katalog`, priority: '0.9', changefreq: 'daily' },
+            { url: `${baseUrl}/tentang-kami`, priority: '0.8', changefreq: 'weekly' },
+            { url: `${baseUrl}/kontak`, priority: '0.8', changefreq: 'weekly' },
+            { url: `${baseUrl}/kupon`, priority: '0.7', changefreq: 'weekly' },
         ];
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -873,6 +876,7 @@ app.get('/sitemap.xml', async (req, res) => {
         for (const page of staticPages) {
             xml += `  <url>\n`;
             xml += `    <loc>${page.url}</loc>\n`;
+            xml += `    <lastmod>${lastmodNow}</lastmod>\n`;
             xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
             xml += `    <priority>${page.priority}</priority>\n`;
             xml += `  </url>\n`;
@@ -880,19 +884,21 @@ app.get('/sitemap.xml', async (req, res) => {
 
         for (const product of products) {
             const slug = slugifyLocal(product.name);
-            const productUrl = `${baseUrl}/#/produk/${slug}`;
-            const lastMod = product.updatedAt ? new Date(product.updatedAt).toISOString() : new Date().toISOString();
+            const productUrl = `${baseUrl}/produk/${slug}`;
+            const lastMod = product.updatedAt ? new Date(product.updatedAt).toISOString() : lastmodNow;
             const mainImg = product.imageUrls && product.imageUrls[0] ? product.imageUrls[0] : '';
+            const productName = xmlEscape(product.name);
 
             xml += `  <url>\n`;
-            xml += `    <loc>${productUrl}</loc>\n`;
+            xml += `    <loc>${xmlEscape(productUrl)}</loc>\n`;
             xml += `    <lastmod>${lastMod}</lastmod>\n`;
             xml += `    <changefreq>daily</changefreq>\n`;
             xml += `    <priority>0.9</priority>\n`;
             if (mainImg) {
                 xml += `    <image:image>\n`;
-                xml += `      <image:loc>${mainImg}</image:loc>\n`;
-                xml += `      <image:title>${product.name.replace(/&/g, '&amp;')}</image:title>\n`;
+                xml += `      <image:loc>${xmlEscape(mainImg)}</image:loc>\n`;
+                xml += `      <image:title>${productName}</image:title>\n`;
+                xml += `      <image:caption>Pusaka & Benda Bertuah ${xmlEscape(product.category || 'Nusantara')} - Tapak Pamungkas</image:caption>\n`;
                 xml += `    </image:image>\n`;
             }
             xml += `  </url>\n`;
@@ -911,7 +917,27 @@ app.get('/sitemap.xml', async (req, res) => {
 
 app.get('/robots.txt', (req, res) => {
     const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
-    const robots = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\n\nSitemap: ${baseUrl}/sitemap.xml\n`;
+    const robots = `User-agent: *
+Allow: /
+Allow: /katalog
+Allow: /produk/
+Allow: /tentang-kami
+Allow: /kontak
+Allow: /kupon
+Disallow: /api/
+Disallow: /admin
+Disallow: /masuk
+Disallow: /daftar
+Disallow: /keranjang
+Disallow: /checkout
+Disallow: /konfirmasi-pesanan
+Disallow: /wishlist
+Disallow: /riwayat-pesanan
+Disallow: /profil
+Disallow: /katalog?q=
+
+Sitemap: ${baseUrl}/sitemap.xml
+`;
     res.header('Content-Type', 'text/plain');
     res.send(robots);
 });

@@ -9,6 +9,8 @@ export interface Product {
   imageUrls: string[]; // Changed from imageUrl: string
   category: string;
   stock: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem extends Product {

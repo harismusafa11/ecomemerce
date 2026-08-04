@@ -14,7 +14,16 @@
     <meta name="googlebot" content="index, follow" />
     <meta name="geo.region" content="ID" />
     <meta name="geo.country" content="Indonesia" />
+    <meta name="geo.position" content="-6.8896;109.6741" />
+    <meta name="ICBM" content="-6.8896, 109.6741" />
     <meta name="language" content="Indonesian" />
+    <meta name="theme-color" content="#211c18" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="application-name" content="Tapak Pamungkas" />
+
+    <!-- ====== HREFLANG ====== -->
+    <link rel="alternate" hreflang="id-ID" href="https://tapakpamungkas.my.id/" />
+    <link rel="alternate" hreflang="x-default" href="https://tapakpamungkas.my.id/" />
 
     <!-- ====== CANONICAL URL ====== -->
     <link rel="canonical" href="https://tapakpamungkas.my.id/" />
@@ -23,10 +32,12 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Tapak Pamungkas" />
     <meta property="og:locale" content="id_ID" />
+    <meta property="og:locale:alternate" content="id_ID" />
     <meta property="og:url" content="https://tapakpamungkas.my.id/" />
     <meta property="og:title" content="Tapak Pamungkas - Majelis Spiritual &amp; Pemaharan Piranti Bertuah Nusantara" />
     <meta property="og:description" content="Sanggar Kebatinan &amp; Majelis Pemaharan Tapak Pamungkas. Layanan supranatural profesional, pemaharan keris pusaka sepuh, azimat bertuah, media hikmah, serta ijazah keilmuan spiritual nusantara terpercaya." />
     <meta property="og:image" content="https://files.catbox.moe/z44d2s.png" />
+    <meta property="og:image:secure_url" content="https://files.catbox.moe/z44d2s.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Tapak Pamungkas - Sanggar Kebatinan &amp; Pemaharan Pusaka Nusantara" />
@@ -83,7 +94,7 @@
         "@type": "SearchAction",
         "target": {
           "@type": "EntryPoint",
-          "urlTemplate": "https://tapakpamungkas.my.id/#/katalog?q={search_term_string}"
+          "urlTemplate": "https://tapakpamungkas.my.id/katalog?q={search_term_string}"
         },
         "query-input": "required name=search_term_string"
       }
@@ -110,28 +121,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <!-- ====== TAILWIND CSS & CUSTOM STYLES ====== -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'brand-primary': '#3a322b',
-              'brand-secondary': '#b58e6f',
-              'brand-accent': '#e8e0d9',
-              'brand-light': '#faf8f6',
-              'brand-dark': '#211c18',
-              'brand-gold': '#c5a47e',
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Lora', 'serif'],
-            }
-          }
-        }
-      }
-    </script>
+    <!-- ====== TAILWIND CSS & CUSTOM STYLES (compiled at build time) ====== -->
     <link rel="stylesheet" href="/index.css">
   </head>
   <body class="bg-brand-light font-sans text-brand-dark antialiased">

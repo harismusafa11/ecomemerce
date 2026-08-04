@@ -5,7 +5,7 @@ import { LocaleProvider } from './context/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useTranslations } from './hooks/useTranslations';
 import { api } from './services/api';
-import { getProductSlug, updateSEO, generateProductSchema } from './lib/seo';
+import { getProductSlug, updateSEO, generateProductSchema, generateBreadcrumbSchema, generateItemListSchema, generateStoreSchema, SITE_URL } from './lib/seo';
 
 // Import Components
 import Header from './components/Header';
@@ -171,97 +171,137 @@ const AppContent: React.FC = () => {
         }
     }, []);
 
-    // --- PAGE SLUGS & HASH ROUTING ---
-    const PAGE_TO_HASH: Record<Page, string> = {
-        home: '#/',
-        allProducts: '#/katalog',
-        about: '#/tentang-kami',
-        contact: '#/kontak',
-        cart: '#/keranjang',
-        checkout: '#/checkout',
-        wishlist: '#/wishlist',
-        vouchers: '#/kupon',
-        orderHistory: '#/riwayat-pesanan',
-        profile: '#/profil',
-        login: '#/masuk',
-        register: '#/daftar',
-        adminLogin: '#/admin-login',
-        adminPanel: '#/admin',
-        orderConfirmation: '#/konfirmasi-pesanan',
-        product: '#/produk',
+    // --- PAGE SLUGS & CLEAN URL ROUTING ---
+    const PAGE_TO_PATH: Record<Page, string> = {
+        home: '/',
+        allProducts: '/katalog',
+        about: '/tentang-kami',
+        contact: '/kontak',
+        cart: '/keranjang',
+        checkout: '/checkout',
+        wishlist: '/wishlist',
+        vouchers: '/kupon',
+        orderHistory: '/riwayat-pesanan',
+        profile: '/profil',
+        login: '/masuk',
+        register: '/daftar',
+        adminLogin: '/admin-login',
+        adminPanel: '/admin',
+        orderConfirmation: '/konfirmasi-pesanan',
+        product: '/produk',
     };
 
-    const HASH_TO_PAGE: Record<string, Page> = {
-        '#/': 'home',
-        '#': 'home',
-        '': 'home',
-        '#/katalog': 'allProducts',
-        '#/tentang-kami': 'about',
-        '#/kontak': 'contact',
-        '#/keranjang': 'cart',
-        '#/checkout': 'checkout',
-        '#/wishlist': 'wishlist',
-        '#/kupon': 'vouchers',
-        '#/riwayat-pesanan': 'orderHistory',
-        '#/profil': 'profile',
-        '#/masuk': 'login',
-        '#/daftar': 'register',
-        '#/admin-login': 'adminLogin',
-        '#/admin': 'adminPanel',
-        '#/konfirmasi-pesanan': 'orderConfirmation',
+    const PATH_TO_PAGE: Record<string, Page> = {
+        '/': 'home',
+        '/katalog': 'allProducts',
+        '/tentang-kami': 'about',
+        '/kontak': 'contact',
+        '/keranjang': 'cart',
+        '/checkout': 'checkout',
+        '/wishlist': 'wishlist',
+        '/kupon': 'vouchers',
+        '/riwayat-pesanan': 'orderHistory',
+        '/profil': 'profile',
+        '/masuk': 'login',
+        '/daftar': 'register',
+        '/admin-login': 'adminLogin',
+        '/admin': 'adminPanel',
+        '/konfirmasi-pesanan': 'orderConfirmation',
     };
 
-    // --- NAVIGATION WITH SLUG & HASH UPDATES ---
+    // --- NAVIGATION WITH SLUG & CLEAN URL UPDATES ---
     const handleNavigate = useCallback((page: Page, product?: Product) => {
         setCurrentPage(page);
+        let path: string;
         if (page === 'product' && product) {
             setSelectedProduct(product);
-            const slug = getProductSlug(product);
-            window.location.hash = `#/produk/${slug}`;
+            path = `/produk/${getProductSlug(product)}`;
         } else {
-            const hash = PAGE_TO_HASH[page] || '#/';
-            window.location.hash = hash;
+            path = PAGE_TO_PATH[page] || '/';
+        }
+        window.history.pushState(null, '', path);
+    }, []);
+
+    // Resolve current pathname (minus query string) to a page + optional product
+    const resolvePath = useCallback((pathname: string) => {
+        if (pathname.startsWith('/produk/')) {
+            const slug = decodeURIComponent(pathname.replace('/produk/', ''));
+            const matched = products.find(p => getProductSlug(p) === slug || p.id === Number(slug));
+            if (matched) return { page: 'product' as Page, product: matched };
+            return { page: 'allProducts' as Page, product: null };
+        }
+        return { page: PATH_TO_PAGE[pathname] || 'home', product: null };
+    }, [products]);
+
+    // Migrate legacy hash URLs (#/...) to clean URLs once, then let the router read pathname
+    useEffect(() => {
+        const { hash, pathname, search } = window.location;
+        if (hash.startsWith('#/') || hash === '#') {
+            const cleanPath = hash.replace(/^#/, ''); // '/katalog', '/produk/slug', '/'
+            const [pathPart, queryPart] = cleanPath.split('?');
+            const finalSearch = queryPart ? `?${queryPart}` : search;
+            window.history.replaceState(null, '', `${pathPart || '/'}${finalSearch}`);
+        } else if (pathname === '/' && !search) {
+            // ensure home route stays canonical at '/'
+            return;
         }
     }, []);
 
-    // Listen to URL Hash changes for slug routing & deep linking
+    // Sync app state with pathname (initial load, back/forward, product data arrival)
     useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash || '#/';
-            if (hash.startsWith('#/produk/')) {
-                const slugParam = hash.replace('#/produk/', '');
-                if (products.length > 0) {
-                    const matched = products.find(p => getProductSlug(p) === slugParam || p.id === Number(slugParam));
-                    if (matched) {
-                        setSelectedProduct(matched);
-                        setCurrentPage('product');
-                        return;
-                    }
+        const applyPath = () => {
+            const { pathname, search } = window.location;
+            const { page, product } = resolvePath(pathname);
+            if (page === 'product' && product) {
+                setSelectedProduct(product);
+                setCurrentPage('product');
+            } else {
+                setSelectedProduct(null);
+                setCurrentPage(page);
+                if (page === 'allProducts') {
+                    const q = new URLSearchParams(search).get('q') || '';
+                    setSearchQuery(q);
                 }
-            } else if (HASH_TO_PAGE[hash]) {
-                setCurrentPage(HASH_TO_PAGE[hash]);
             }
         };
 
-        handleHashChange();
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [products]);
+        applyPath();
+        window.addEventListener('popstate', applyPath);
+        return () => window.removeEventListener('popstate', applyPath);
+    }, [products, resolvePath]);
 
     // DYNAMIC SEO & SCHEMA.ORG META UPDATES
     useEffect(() => {
+        const isSearchResult = new URLSearchParams(window.location.search).has('q');
+        const privatePages: Page[] = ['cart', 'checkout', 'orderConfirmation', 'wishlist', 'orderHistory', 'profile', 'login', 'register', 'adminLogin', 'adminPanel'];
+
         if (currentPage === 'product' && selectedProduct) {
             updateSEO({
                 title: `${selectedProduct.name} - Mahar & Detail Pusaka`,
                 description: `${selectedProduct.name}: ${selectedProduct.description.slice(0, 150)}...`,
-                image: selectedProduct.imageUrls[0],
+                image: selectedProduct.imageUrls && selectedProduct.imageUrls[0] ? selectedProduct.imageUrls[0] : 'https://files.catbox.moe/z44d2s.png',
                 type: 'product',
-                jsonLd: generateProductSchema(selectedProduct)
+                jsonLd: [
+                    generateProductSchema(selectedProduct),
+                    generateBreadcrumbSchema([
+                        { name: 'Beranda', url: SITE_URL + '/' },
+                        { name: 'Katalog', url: `${SITE_URL}/katalog` },
+                        { name: selectedProduct.name, url: `${SITE_URL}/produk/${getProductSlug(selectedProduct)}` },
+                    ])
+                ]
             });
         } else if (currentPage === 'allProducts') {
             updateSEO({
                 title: 'Katalog Produk & Pusaka Bertuah - Tapak Pamungkas',
-                description: 'Jelajahi seluruh keris pusaka sepuh, azimat bertuah, media spiritual, dan jamu herbal nusantara Tapak Pamungkas.'
+                description: 'Jelajahi seluruh keris pusaka sepuh, azimat bertuah, media spiritual, dan jamu herbal nusantara Tapak Pamungkas.',
+                noindex: isSearchResult,
+                jsonLd: isSearchResult ? undefined : [
+                    generateBreadcrumbSchema([
+                        { name: 'Beranda', url: SITE_URL + '/' },
+                        { name: 'Katalog', url: `${SITE_URL}/katalog` },
+                    ]),
+                    generateItemListSchema(products)
+                ]
             });
         } else if (currentPage === 'about') {
             updateSEO({
@@ -281,10 +321,17 @@ const AppContent: React.FC = () => {
         } else if (currentPage === 'home') {
             updateSEO({
                 title: 'Tapak Pamungkas - Pusat Benda Bertuah & Keris Pusaka Nusantara',
-                description: 'Pusat Benda Bertuah, Keris Pusaka, Layanan Spiritual & Herbal Nusantara.'
+                description: 'Pusat Benda Bertuah, Keris Pusaka, Layanan Spiritual & Herbal Nusantara.',
+                jsonLd: [generateStoreSchema()]
+            });
+        } else if (privatePages.includes(currentPage)) {
+            updateSEO({
+                title: 'Tapak Pamungkas - Majelis Spiritual & Pemaharan Piranti Bertuah Nusantara',
+                description: 'Sanggar Kebatinan & Majelis Pemaharan Tapak Pamungkas. Layanan supranatural profesional, pemaharan keris pusaka sepuh, azimat bertuah, media hikmah, serta ijazah keilmuan spiritual nusantara terpercaya.',
+                noindex: true
             });
         }
-    }, [currentPage, selectedProduct]);
+    }, [currentPage, selectedProduct, products]);
 
     useEffect(() => {
         if (currentPage === 'adminPanel' && currentUser && currentUser.email !== ADMIN_EMAIL) {
@@ -309,8 +356,16 @@ const AppContent: React.FC = () => {
 
     const handleSearchSubmit = useCallback((query: string) => {
         setSearchQuery(query);
-        if (query.trim() && currentPage !== 'allProducts') {
+        const params = new URLSearchParams();
+        if (query.trim()) {
+            params.set('q', query);
+        }
+        const qs = params.toString();
+        if (currentPage !== 'allProducts') {
             handleNavigate('allProducts');
+            window.history.replaceState(null, '', `/katalog${qs ? `?${qs}` : ''}`);
+        } else {
+            window.history.replaceState(null, '', `/katalog${qs ? `?${qs}` : ''}`);
         }
     }, [currentPage, handleNavigate]);
 
@@ -581,9 +636,9 @@ const AppContent: React.FC = () => {
         }, 1000);
         if (adminClickCount.current === 5) {
             adminClickCount.current = 0;
-            setCurrentPage('adminLogin');
+            handleNavigate('adminLogin');
         }
-    }, [])
+    }, [handleNavigate])
 
     // --- PAGE RENDERING ---
     const renderPage = () => {
