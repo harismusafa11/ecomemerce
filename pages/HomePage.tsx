@@ -3,6 +3,7 @@ import { motion, Variants } from 'framer-motion';
 import { Product, Page } from '../types';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
+import ImageLightbox from '../components/ui/ImageLightbox';
 import { FallingPattern } from '../components/ui/falling-pattern';
 import { useTranslations } from '../hooks/useTranslations';
 import { ShieldCheck, Truck, Award, ArrowRight, Quote, MessageCircle, Ticket, Eye, Crown, Flame } from 'lucide-react';
@@ -26,6 +27,7 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
     const { t } = useTranslations();
     const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+    const [lightboxProduct, setLightboxProduct] = useState<Product | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
     const categories = [
@@ -82,6 +84,14 @@ const HomePage: React.FC<HomePageProps> = ({
                 onAddToCart={onAddToCart}
                 isInWishlist={quickViewProduct ? wishlistItems.includes(quickViewProduct.id) : false}
                 onToggleWishlist={onToggleWishlist}
+            />
+
+            {/* Featured Product Image Lightbox */}
+            <ImageLightbox
+                images={lightboxProduct?.imageUrls ?? []}
+                initialIndex={0}
+                isOpen={!!lightboxProduct}
+                onClose={() => setLightboxProduct(null)}
             />
 
             {/* 1. Symmetrical Center-Aligned Luxury Hero */}
@@ -219,8 +229,11 @@ const HomePage: React.FC<HomePageProps> = ({
                                     whileHover={{ y: -4 }}
                                     className="glass-panel p-6 rounded-3xl border border-amber-500/30 flex flex-col sm:flex-row gap-6 items-center shadow-2xl"
                                 >
-                                    <div className="w-full sm:w-48 aspect-square rounded-2xl bg-stone-950 overflow-hidden flex-shrink-0 p-3 border border-stone-800 flex items-center justify-center">
+                                    <div onClick={() => setLightboxProduct(prod)} className="w-full sm:w-48 aspect-square rounded-2xl bg-stone-950 overflow-hidden flex-shrink-0 p-3 border border-stone-800 flex items-center justify-center cursor-zoom-in relative">
                                         <img src={prod.imageUrls[0]} alt={prod.name} className="w-full h-full object-contain filter drop-shadow-md" />
+                                        <span className="absolute bottom-2 right-2 bg-stone-900/70 text-stone-300 border border-stone-700 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" title="Perbesar Foto">
+                                            <Eye className="w-3.5 h-3.5" />
+                                        </span>
                                     </div>
                                     <div className="flex flex-col justify-between space-y-3 w-full">
                                         <div>

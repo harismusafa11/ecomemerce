@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShoppingBag, Heart, MessageCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, ShoppingBag, Heart, MessageCircle, CheckCircle2, ShieldCheck, ZoomIn } from 'lucide-react';
 import LazyImage from './ui/LazyImage';
+import ImageLightbox from './ui/ImageLightbox';
 import { useTranslations } from '../hooks/useTranslations';
 
 interface QuickViewModalProps {
@@ -23,7 +24,12 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   const { t } = useTranslations();
   const [selectedImgIndex, setSelectedImgIndex] = useState(0);
   const [isAdded, setIsAdded] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const imgContainerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsLightboxOpen(false);
+  }, [product?.id]);
 
   if (!product) return null;
 
@@ -44,8 +50,9 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -74,12 +81,15 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 sm:p-8">
             {/* Gallery Section */}
             <div className="flex flex-col gap-4">
-              <div ref={imgContainerRef} className="relative aspect-square w-full rounded-2xl bg-stone-950/80 border border-amber-500/20 overflow-hidden flex items-center justify-center p-4">
+              <div ref={imgContainerRef} onClick={() => setIsLightboxOpen(true)} className="relative aspect-square w-full rounded-2xl bg-stone-950/80 border border-amber-500/20 overflow-hidden flex items-center justify-center p-4 cursor-zoom-in">
                 <LazyImage
                   src={product.imageUrls[selectedImgIndex] || product.imageUrls[0]}
                   alt={product.name}
                   className="w-full h-full object-contain filter drop-shadow-xl"
                 />
+                <div className="absolute bottom-4 right-4 z-20 bg-stone-900/80 text-stone-300 border border-stone-700 p-2 rounded-full opacity-0 group-hover:opacity-100 hover:text-amber-400 transition-all pointer-events-none" title="Perbesar Foto">
+                  <ZoomIn className="w-4 h-4" />
+                </div>
                 <button
                   onClick={() => onToggleWishlist(product.id)}
                   className={`absolute top-4 left-4 p-2.5 rounded-full border transition-all ${
@@ -182,7 +192,16 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+      </AnimatePresence>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        images={product.imageUrls}
+        initialIndex={selectedImgIndex}
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+      />
+    </>
   );
 };
 
