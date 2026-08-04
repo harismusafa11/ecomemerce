@@ -91,10 +91,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Health check endpoint (with real database connectivity test)
+const handleHealth = async (req: express.Request, res: express.Response) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({
+            status: 'ok',
+            database: 'connected',
+            timestamp: new Date().toISOString(),
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            database: 'disconnected',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+};
+app.get('/health', handleHealth);
+app.get('/api/health', handleHealth);
 
 // --- PRODUCTS ---
 app.get('/api/products', async (req, res) => {

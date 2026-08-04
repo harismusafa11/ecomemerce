@@ -80,6 +80,9 @@ const AppContent: React.FC = () => {
 
     const ADMIN_EMAIL = 'admin@tapakpamungkas.com';
 
+    const cartCacheKey = (userId: number) => `tp_cart_${userId}`;
+    const wishlistCacheKey = (userId: number) => `tp_wishlist_${userId}`;
+
     // --- EFFECTS ---
     // Fetch products on mount
     useEffect(() => {
@@ -108,18 +111,45 @@ const AppContent: React.FC = () => {
                 const user = JSON.parse(storedUser);
                 setCurrentUser(user);
 
+                // Restore cart & wishlist from local cache immediately so a refresh never wipes them
+                try {
+                    const cachedCart = JSON.parse(localStorage.getItem(cartCacheKey(user.id)) || '[]');
+                    if (Array.isArray(cachedCart)) setCartItems(cachedCart);
+                } catch (e) {
+                    console.warn("Failed to restore cart cache", e);
+                }
+                try {
+                    const cachedWishlist = JSON.parse(localStorage.getItem(wishlistCacheKey(user.id)) || '[]');
+                    if (Array.isArray(cachedWishlist)) setWishlistItems(cachedWishlist);
+                } catch (e) {
+                    console.warn("Failed to restore wishlist cache", e);
+                }
+
                 // Fetch user data
                 // Use separate try-catch blocks to prevent logout on data fetch failure
                 api.getCart(user.id)
                     .then(items => {
-                        // items from API are CartItem[] (with product info merged in backend or here)
-                        // The backend returns { ...cartItem, product: { ... } }
-                        // We need to map it to CartItem structure: { ...product, quantity }
                         const mappedItems = items.map((i: any) => ({
                             ...i.product,
                             quantity: i.quantity
                         }));
-                        setCartItems(mappedItems);
+                        setCartItems(prev => {
+                            const merged = [...prev];
+                            mappedItems.forEach(si => {
+                                const idx = merged.findIndex(m => m.id === si.id);
+                                if (idx >= 0) merged[idx] = si;
+                                else merged.push(si);
+                            });
+                            return merged;
+                        });
+                        let localOnly: any[] = [];
+                        try {
+                            const cached = JSON.parse(localStorage.getItem(cartCacheKey(user.id)) || '[]');
+                            localOnly = cached.filter((c: any) => !mappedItems.find(m => m.id === c.id));
+                        } catch (e) { }
+                        localOnly.forEach((item: any) => {
+                            api.addToCart(user.id, item.id, item.quantity).catch(() => { });
+                        });
                     })
                     .catch(e => console.error("Failed to fetch cart", e));
 
@@ -137,6 +167,19 @@ const AppContent: React.FC = () => {
             }
         }
     }, []);
+
+    // Persist cart & wishlist to local cache whenever they change (survives refresh even if API is unreachable)
+    useEffect(() => {
+        if (currentUser) {
+            try { localStorage.setItem(cartCacheKey(currentUser.id), JSON.stringify(cartItems)); } catch (e) {}
+        }
+    }, [cartItems, currentUser]);
+
+    useEffect(() => {
+        if (currentUser) {
+            try { localStorage.setItem(wishlistCacheKey(currentUser.id), JSON.stringify(wishlistItems)); } catch (e) {}
+        }
+    }, [wishlistItems, currentUser]);
 
     // Refresh vouchers when navigating to vouchers page or product page
     useEffect(() => {
@@ -606,9 +649,13 @@ const AppContent: React.FC = () => {
     }, [t, handleNavigate]);
 
 
-    const handleLogout = useCallback(() => {
+    const handleLogout = useCallback((userId?: number) => {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
+        if (userId) {
+            try { localStorage.removeItem(cartCacheKey(userId)); } catch (e) {}
+            try { localStorage.removeItem(wishlistCacheKey(userId)); } catch (e) {}
+        }
         setCartItems([]); // Clear from UI only, stays in database
         setWishlistItems([]);
         setClaimedVouchers([]);
