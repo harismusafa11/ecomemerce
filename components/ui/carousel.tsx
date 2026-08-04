@@ -91,6 +91,9 @@ const Carousel: React.FC<CarouselProps> = ({ imageUrls, onImageClick, title = "F
                     onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://files.catbox.moe/z44d2s.png';
                     }}
+                    onClick={() => {
+                        if (onImageClick) onImageClick(imageIndex);
+                    }}
                     className={`absolute w-full h-full object-contain ${onImageClick ? 'cursor-pointer' : ''}`}
                 />
             </AnimatePresence>

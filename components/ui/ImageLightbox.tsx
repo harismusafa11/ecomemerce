@@ -171,7 +171,7 @@ const ImageLightbox: React.FC<ImageLightboxProps> = ({ images, initialIndex, isO
                             onLoad={handleImageLoad}
                             onError={handleImageError}
                             onClick={(e) => e.stopPropagation()}
-                            className="max-w-[85vw] max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                            className="max-w-[92vw] max-h-[88vh] sm:max-w-[85vw] sm:max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
                             style={{ display: imageError ? 'none' : 'block' }}
                         />
                     </div>
