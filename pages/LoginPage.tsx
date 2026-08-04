@@ -3,7 +3,7 @@ import { Page, User } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
 import { motion } from 'framer-motion';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
-import { signIn } from '../lib/auth-client';
+
 
 interface LoginPageProps {
     onLogin: (email: string, pass: string) => Promise<User | null> | User | null;
@@ -35,19 +35,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate, needsAdminAc
         } catch (err) {
             setIsLoading(false);
             setError(t('login.errorIncorrect'));
-        }
-    };
-
-    const handleGoogleLogin = async () => {
-        setError('');
-        try {
-            await signIn.social({
-                provider: 'google',
-                callbackURL: window.location.origin,
-            });
-        } catch (err) {
-            console.error('Google Sign In Error:', err);
-            setError('Gagal masuk dengan Google. Silakan coba lagi.');
         }
     };
 
@@ -119,28 +106,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate, needsAdminAc
                         <ArrowRight className="w-4 h-4" />
                     </button>
                 </form>
-
-                {/* Divider */}
-                <div className="my-6 flex items-center gap-3">
-                    <div className="flex-1 h-px bg-stone-800"></div>
-                    <span className="text-[10px] font-mono text-stone-500 uppercase tracking-widest">Atau</span>
-                    <div className="flex-1 h-px bg-stone-800"></div>
-                </div>
-
-                {/* Google Sign In Button */}
-                <button
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    className="w-full py-3 px-4 rounded-xl font-medium text-stone-200 bg-stone-900 border border-stone-800 hover:border-amber-500/50 hover:bg-stone-800 transition-all text-xs flex items-center justify-center gap-3 shadow-md group"
-                >
-                    <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                        <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z" />
-                        <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z" />
-                        <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 10.8 0 12s.7 2.3 1.9 4.7l3.7-2.9z" />
-                        <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z" />
-                    </svg>
-                    <span>Masuk dengan Akun Google</span>
-                </button>
 
                 <div className="mt-6 text-center text-xs font-mono text-stone-400">
                     <span>Belum memiliki akun? </span>

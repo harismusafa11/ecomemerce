@@ -5,7 +5,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Parsing public-Product-selection.md and seeding 147 original products...');
+    console.log('🌱 Cleaning out test products 1-8 and seeding authentic products 9-50...');
+
+    // Delete test fallback products 1-8
+    await prisma.product.deleteMany({
+        where: {
+            id: { in: [1, 2, 3, 4, 5, 6, 7, 8] }
+        }
+    }).catch(() => {});
 
     const filePath = path.join(process.cwd(), 'public-Product-selection.md');
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -17,11 +24,14 @@ async function main() {
         const line = lines[i].trim();
         if (!line || !line.startsWith('|')) continue;
 
-        // Split line by '|'
         const parts = line.split('|').map(p => p.trim());
         if (parts.length < 10) continue;
 
         const id = parseInt(parts[1], 10);
+        
+        // Skip IDs 1-8 as requested by user to only keep authentic database catalog
+        if (isNaN(id) || id <= 8) continue;
+
         const category = parts[2];
         const createdAtStr = parts[3];
         const descriptionRaw = parts[4];
@@ -31,16 +41,15 @@ async function main() {
         const stock = parseInt(parts[8], 10);
         const updatedAtStr = parts[9];
 
-        if (isNaN(id) || !name) continue;
+        if (!name) continue;
 
         let imageUrls = [];
         try {
             imageUrls = JSON.parse(imageUrlsRaw);
         } catch {
-            imageUrls = ['https://files.catbox.moe/z44d2s.png'];
+            imageUrls = [];
         }
 
-        // Clean up description <br /> tags
         const description = descriptionRaw.replace(/<br\s*\/?>/gi, '\n');
 
         productsToInsert.push({
@@ -49,29 +58,16 @@ async function main() {
             description,
             price: isNaN(price) ? 100000 : price,
             stock: isNaN(stock) ? 10 : stock,
-            category: category || 'General',
-            imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : ['https://files.catbox.moe/z44d2s.png'],
+            category: category || 'Keilmuan',
+            imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : [],
             createdAt: createdAtStr ? new Date(createdAtStr) : new Date(),
             updatedAt: updatedAtStr ? new Date(updatedAtStr) : new Date(),
         });
     }
 
-    console.log(`Parsed ${productsToInsert.length} products from public-Product-selection.md!`);
+    console.log(`Parsed ${productsToInsert.length} authentic products (IDs 9-50)!`);
 
-    // Upsert admin user
-    await prisma.user.upsert({
-        where: { email: 'admin@tapakpamungkas.com' },
-        update: {},
-        create: {
-            name: 'Admin Pamungkas',
-            email: 'admin@tapakpamungkas.com',
-            password: 'admin123',
-            isAdmin: true,
-        },
-    });
-    console.log('✅ Admin user ready');
-
-    // Upsert all products
+    // Upsert all authentic products
     let count = 0;
     for (const prod of productsToInsert) {
         await prisma.product.upsert({
@@ -82,7 +78,7 @@ async function main() {
         count++;
     }
 
-    console.log(`🎉 Successfully seeded ${count} original products into Prisma PostgreSQL database!`);
+    console.log(`🎉 Successfully seeded ${count} authentic products into database!`);
 }
 
 main()
