@@ -4,13 +4,15 @@ import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { LocaleProvider } from './context/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useTranslations } from './hooks/useTranslations';
-import { api } from './services/api';
-import { getProductSlug, updateSEO, generateProductSchema, generateBreadcrumbSchema, generateItemListSchema, generateStoreSchema, SITE_URL } from './lib/seo';
+import { api, getToken, clearToken, onUnauthorized } from './services/api';
+import { getProductSlug, updateSEO, generateProductSchema, generateBreadcrumbSchema, generateItemListSchema, generateStoreSchema, SITE_URL, SITE_LOGO } from './lib/seo';
+import { BLOG_ARTICLES, getArticleBySlug, BlogArticle } from './lib/blog';
 
 // Import Components
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Toast from './components/ui/Toast';
+import WhatsAppWidget from './components/WhatsAppWidget';
 
 // Lazy load Pages for performance optimization
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -28,6 +30,11 @@ const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const VoucherPage = lazy(() => import('./pages/VoucherPage'));
 const OrderHistoryPage = lazy(() => import('./pages/OrderHistoryPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const BlogPage = lazy(() => import('./pages/BlogPage'));
+const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'));
 
 
 type ToastState = {
@@ -76,6 +83,12 @@ const AppContent: React.FC = () => {
     const [cartIconRect, setCartIconRect] = useState<DOMRect | null>(null);
     const [flyingAnim, setFlyingAnim] = useState<FlyingAnimState | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedArticle, setSelectedArticle] = useState<BlogArticle | null>(null);
+    const [reAuthOpen, setReAuthOpen] = useState(false);
+    const [reAuthEmail, setReAuthEmail] = useState('');
+    const [reAuthPass, setReAuthPass] = useState('');
+    const [reAuthError, setReAuthError] = useState('');
+    const [reAuthLoading, setReAuthLoading] = useState(false);
     const { t } = useTranslations();
 
     const ADMIN_EMAIL = 'admin@tapakpamungkas.com';
@@ -125,41 +138,43 @@ const AppContent: React.FC = () => {
                     console.warn("Failed to restore wishlist cache", e);
                 }
 
-                // Fetch user data
-                // Use separate try-catch blocks to prevent logout on data fetch failure
-                api.getCart(user.id)
-                    .then(items => {
-                        const mappedItems = items.map((i: any) => ({
-                            ...i.product,
-                            quantity: i.quantity
-                        }));
-                        setCartItems(prev => {
-                            const merged = [...prev];
-                            mappedItems.forEach(si => {
-                                const idx = merged.findIndex(m => m.id === si.id);
-                                if (idx >= 0) merged[idx] = si;
-                                else merged.push(si);
+                // Fetch user data (only when a valid session token exists to avoid triggering re-auth on load)
+                if (getToken()) {
+                    // Use separate try-catch blocks to prevent logout on data fetch failure
+                    api.getCart(user.id)
+                        .then(items => {
+                            const mappedItems = items.map((i: any) => ({
+                                ...i.product,
+                                quantity: i.quantity
+                            }));
+                            setCartItems(prev => {
+                                const merged = [...prev];
+                                mappedItems.forEach(si => {
+                                    const idx = merged.findIndex(m => m.id === si.id);
+                                    if (idx >= 0) merged[idx] = si;
+                                    else merged.push(si);
+                                });
+                                return merged;
                             });
-                            return merged;
-                        });
-                        let localOnly: any[] = [];
-                        try {
-                            const cached = JSON.parse(localStorage.getItem(cartCacheKey(user.id)) || '[]');
-                            localOnly = cached.filter((c: any) => !mappedItems.find(m => m.id === c.id));
-                        } catch (e) { }
-                        localOnly.forEach((item: any) => {
-                            api.addToCart(user.id, item.id, item.quantity).catch(() => { });
-                        });
-                    })
-                    .catch(e => console.error("Failed to fetch cart", e));
+                            let localOnly: any[] = [];
+                            try {
+                                const cached = JSON.parse(localStorage.getItem(cartCacheKey(user.id)) || '[]');
+                                localOnly = cached.filter((c: any) => !mappedItems.find(m => m.id === c.id));
+                            } catch (e) { }
+                            localOnly.forEach((item: any) => {
+                                api.addToCart(user.id, item.id, item.quantity).catch(() => { });
+                            });
+                        })
+                        .catch(e => console.error("Failed to fetch cart", e));
 
-                api.getWishlist(user.id)
-                    .then(items => setWishlistItems(items.map((i: any) => i.productId)))
-                    .catch(e => console.error("Failed to fetch wishlist", e));
+                    api.getWishlist(user.id)
+                        .then(items => setWishlistItems(items.map((i: any) => i.productId)))
+                        .catch(e => console.error("Failed to fetch wishlist", e));
 
-                api.getUserVouchers(user.id)
-                    .then(vouchers => setClaimedVouchers(vouchers.map((v: any) => v.id)))
-                    .catch(e => console.error("Failed to fetch vouchers", e));
+                    api.getUserVouchers(user.id)
+                        .then(vouchers => setClaimedVouchers(vouchers.map((v: any) => v.id)))
+                        .catch(e => console.error("Failed to fetch vouchers", e));
+                }
 
             } catch (e) {
                 console.error("Failed to parse stored user", e);
@@ -201,6 +216,17 @@ const AppContent: React.FC = () => {
         window.scrollTo(0, 0);
     }, [currentPage, selectedProduct]);
 
+    // Soft re-auth: when any protected API returns 401 (expired/missing token), show a one-step password prompt.
+    useEffect(() => {
+        onUnauthorized(() => {
+            setReAuthEmail(currentUser?.email || '');
+            setReAuthPass('');
+            setReAuthError('');
+            setReAuthOpen(true);
+        });
+        return () => onUnauthorized(null);
+    }, [currentUser?.email]);
+
     // --- TOAST NOTIFICATION HANDLER ---
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
@@ -232,6 +258,11 @@ const AppContent: React.FC = () => {
         adminPanel: '/admin',
         orderConfirmation: '/konfirmasi-pesanan',
         product: '/produk',
+        privasi: '/privasi',
+        syarat: '/syarat-ketentuan',
+        faq: '/faq',
+        blog: '/blog',
+        blogArticle: '/blog',
     };
 
     const PATH_TO_PAGE: Record<string, Page> = {
@@ -250,30 +281,51 @@ const AppContent: React.FC = () => {
         '/admin-login': 'adminLogin',
         '/admin': 'adminPanel',
         '/konfirmasi-pesanan': 'orderConfirmation',
+        '/privasi': 'privasi',
+        '/syarat-ketentuan': 'syarat',
+        '/faq': 'faq',
+        '/blog': 'blog',
     };
 
     // --- NAVIGATION WITH SLUG & CLEAN URL UPDATES ---
-    const handleNavigate = useCallback((page: Page, product?: Product) => {
+    const handleNavigate = useCallback((page: Page, product?: Product, article?: BlogArticle) => {
         setCurrentPage(page);
         let path: string;
         if (page === 'product' && product) {
             setSelectedProduct(product);
+            setSelectedArticle(null);
             path = `/produk/${getProductSlug(product)}`;
+        } else if (page === 'blogArticle' && article) {
+            setSelectedArticle(article);
+            setSelectedProduct(null);
+            path = `/blog/${article.slug}`;
         } else {
+            setSelectedArticle(null);
+            if (page !== 'product') setSelectedProduct(null);
             path = PAGE_TO_PATH[page] || '/';
         }
         window.history.pushState(null, '', path);
     }, []);
+
+    const handleOpenArticle = useCallback((article: BlogArticle) => {
+        handleNavigate('blogArticle', undefined, article);
+    }, [handleNavigate]);
 
     // Resolve current pathname (minus query string) to a page + optional product
     const resolvePath = useCallback((pathname: string) => {
         if (pathname.startsWith('/produk/')) {
             const slug = decodeURIComponent(pathname.replace('/produk/', ''));
             const matched = products.find(p => getProductSlug(p) === slug || p.id === Number(slug));
-            if (matched) return { page: 'product' as Page, product: matched };
-            return { page: 'allProducts' as Page, product: null };
+            if (matched) return { page: 'product' as Page, product: matched, article: null };
+            return { page: 'allProducts' as Page, product: null, article: null };
         }
-        return { page: PATH_TO_PAGE[pathname] || 'home', product: null };
+        if (pathname.startsWith('/blog/')) {
+            const slug = decodeURIComponent(pathname.replace('/blog/', ''));
+            const matched = getArticleBySlug(slug);
+            if (matched) return { page: 'blogArticle' as Page, product: null, article: matched };
+            return { page: 'blog' as Page, product: null, article: null };
+        }
+        return { page: PATH_TO_PAGE[pathname] || 'home', product: null, article: null };
     }, [products]);
 
     // Migrate legacy hash URLs (#/...) to clean URLs once, then let the router read pathname
@@ -294,12 +346,18 @@ const AppContent: React.FC = () => {
     useEffect(() => {
         const applyPath = () => {
             const { pathname, search } = window.location;
-            const { page, product } = resolvePath(pathname);
+            const { page, product, article } = resolvePath(pathname);
             if (page === 'product' && product) {
                 setSelectedProduct(product);
+                setSelectedArticle(null);
                 setCurrentPage('product');
+            } else if (page === 'blogArticle' && article) {
+                setSelectedArticle(article);
+                setSelectedProduct(null);
+                setCurrentPage('blogArticle');
             } else {
                 setSelectedProduct(null);
+                setSelectedArticle(null);
                 setCurrentPage(page);
                 if (page === 'allProducts') {
                     const q = new URLSearchParams(search).get('q') || '';
@@ -367,6 +425,54 @@ const AppContent: React.FC = () => {
                 description: 'Pusat Benda Bertuah, Keris Pusaka, Layanan Spiritual & Herbal Nusantara.',
                 jsonLd: [generateStoreSchema()]
             });
+        } else if (currentPage === 'blogArticle' && selectedArticle) {
+            updateSEO({
+                title: selectedArticle.title,
+                description: selectedArticle.excerpt,
+                type: 'article',
+                jsonLd: {
+                    '@context': 'https://schema.org',
+                    '@type': 'Article',
+                    'headline': selectedArticle.title,
+                    'description': selectedArticle.excerpt,
+                    'image': selectedArticle.image,
+                    'datePublished': selectedArticle.date,
+                    'dateModified': selectedArticle.date,
+                    'author': {
+                        '@type': 'Organization',
+                        'name': 'Tapak Pamungkas'
+                    },
+                    'publisher': {
+                        '@type': 'Organization',
+                        'name': 'Tapak Pamungkas',
+                        'logo': {
+                            '@type': 'ImageObject',
+                            'url': SITE_LOGO
+                        }
+                    },
+                    'mainEntityOfPage': `${SITE_URL}/blog/${selectedArticle.slug}`
+                }
+            });
+        } else if (currentPage === 'blog') {
+            updateSEO({
+                title: 'Blog & Wawasan Spiritual - Tapak Pamungkas',
+                description: 'Artikel seputar perawatan pusaka, media bertuah, keilmuan, dan tradisi spiritual Nusantara dari sanggar Tapak Pamungkas.'
+            });
+        } else if (currentPage === 'faq') {
+            updateSEO({
+                title: 'Pertanyaan yang Sering Diajukan - Tapak Pamungkas',
+                description: 'Jawaban seputar keaslian pusaka, pembayaran, pengiriman, hingga perawatan benda bertuah Tapak Pamungkas.'
+            });
+        } else if (currentPage === 'privasi') {
+            updateSEO({
+                title: 'Kebijakan Privasi - Tapak Pamungkas',
+                description: 'Kebijakan privasi dan perlindungan data pribadi pelanggan sanggar Tapak Pamungkas.'
+            });
+        } else if (currentPage === 'syarat') {
+            updateSEO({
+                title: 'Syarat & Ketentuan - Tapak Pamungkas',
+                description: 'Syarat dan ketentuan layanan pemaharan pusaka & benda bertuah Tapak Pamungkas.'
+            });
         } else if (privatePages.includes(currentPage)) {
             updateSEO({
                 title: 'Tapak Pamungkas - Majelis Spiritual & Pemaharan Piranti Bertuah Nusantara',
@@ -374,7 +480,7 @@ const AppContent: React.FC = () => {
                 noindex: true
             });
         }
-    }, [currentPage, selectedProduct, products]);
+    }, [currentPage, selectedProduct, selectedArticle, products]);
 
     useEffect(() => {
         if (currentPage === 'adminPanel' && currentUser && currentUser.email !== ADMIN_EMAIL) {
@@ -537,6 +643,7 @@ const AppContent: React.FC = () => {
                 userId: currentUser.id,
                 items: orderItems,
                 total: finalTotal,
+                discountAmount: discountAmount,
                 shippingCost: shippingCost,
                 shippingCourier: orderDetails?.shippingCourier || sessionStorage.getItem('cart_shipping_courier') || undefined,
                 province: orderDetails?.province || sessionStorage.getItem('cart_dest_prov_name') || undefined,
@@ -652,6 +759,7 @@ const AppContent: React.FC = () => {
     const handleLogout = useCallback((userId?: number) => {
         setCurrentUser(null);
         localStorage.removeItem('currentUser');
+        clearToken();
         if (userId) {
             try { localStorage.removeItem(cartCacheKey(userId)); } catch (e) {}
             try { localStorage.removeItem(wishlistCacheKey(userId)); } catch (e) {}
@@ -662,6 +770,25 @@ const AppContent: React.FC = () => {
         handleNavigate('home');
         showToast(t('toasts.logoutSuccess'), 'success');
     }, [t, handleNavigate]);
+
+    // Soft re-auth: verify password once for a legacy/expired session to obtain a fresh token.
+    const handleReAuth = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault();
+        setReAuthError('');
+        setReAuthLoading(true);
+        try {
+            const user = await api.login(reAuthEmail.trim(), reAuthPass);
+            setCurrentUser(user);
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            setReAuthOpen(false);
+            setReAuthPass('');
+            showToast(t('toasts.welcome', { name: user.name }), 'success');
+        } catch (err) {
+            setReAuthError('Email atau kata sandi salah. Silakan coba lagi.');
+        } finally {
+            setReAuthLoading(false);
+        }
+    }, [reAuthEmail, reAuthPass, t, showToast]);
 
     const handleRegister = useCallback(async (name: string, email: string, pass: string): Promise<User | null> => {
         try {
@@ -760,6 +887,16 @@ const AppContent: React.FC = () => {
                 return <AboutPage />;
             case 'contact':
                 return <ContactPage />;
+            case 'privasi':
+                return <PrivacyPage />;
+            case 'syarat':
+                return <TermsPage />;
+            case 'faq':
+                return <FAQPage />;
+            case 'blog':
+                return <BlogPage onOpenArticle={handleOpenArticle} />;
+            case 'blogArticle':
+                return selectedArticle && <BlogDetailPage article={selectedArticle} onOpenArticle={handleOpenArticle} onBack={() => handleNavigate('blog')} />;
             case 'login':
                 return <LoginPage onLogin={handleLogin} onNavigate={handleNavigate} />;
             case 'register':
@@ -804,7 +941,7 @@ const AppContent: React.FC = () => {
                 <Suspense fallback={<LoadingSpinner />}>
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={currentPage + (selectedProduct ? selectedProduct.id : '')}
+                            key={currentPage + (selectedProduct ? selectedProduct.id : '') + (selectedArticle ? selectedArticle.slug : '')}
                             variants={pageVariants}
                             initial="initial"
                             animate="animate"
@@ -818,7 +955,74 @@ const AppContent: React.FC = () => {
             </main>
             {showLayout && <Footer onAdminTrigger={handleAdminTrigger} onNavigate={handleNavigate} />}
 
+            {showLayout && <WhatsAppWidget />}
+
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+            {/* Soft Re-Auth Modal (legacy/expired session) */}
+            <AnimatePresence>
+                {reAuthOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setReAuthOpen(false)}
+                            className="fixed inset-0 bg-black/80 backdrop-blur-md"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="relative w-full max-w-md glass-panel p-8 rounded-3xl border border-amber-500/30 shadow-2xl z-10 text-stone-100"
+                        >
+                            <div className="text-center mb-6">
+                                <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas" className="h-12 w-12 mx-auto rounded-full border border-amber-500/40 mb-3" />
+                                <h3 className="text-xl font-serif font-bold">Konfirmasi untuk Melanjutkan</h3>
+                                <p className="mt-1 text-xs font-mono text-stone-400">
+                                    Masukkan kata sandi sekali untuk memperbarui sesi akun Anda.
+                                </p>
+                            </div>
+                            <form onSubmit={handleReAuth} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-mono text-stone-400 mb-1">Alamat Email</label>
+                                    <input
+                                        type="email"
+                                        value={reAuthEmail}
+                                        onChange={(e) => setReAuthEmail(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-stone-900 border border-stone-800 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500"
+                                        required
+                                        disabled={!!currentUser}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-mono text-stone-400 mb-1">Kata Sandi</label>
+                                    <input
+                                        type="password"
+                                        value={reAuthPass}
+                                        onChange={(e) => setReAuthPass(e.target.value)}
+                                        placeholder="••••••••"
+                                        className="w-full px-4 py-2.5 bg-stone-900 border border-stone-800 rounded-xl text-stone-100 text-xs focus:outline-none focus:border-amber-500"
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+                                {reAuthError && (
+                                    <p className="text-xs font-mono text-rose-400 text-center">{reAuthError}</p>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={reAuthLoading}
+                                    className="w-full py-3.5 px-6 rounded-xl font-bold text-stone-950 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 transition-all shadow-xl gold-glow text-xs uppercase tracking-wider"
+                                >
+                                    {reAuthLoading ? 'Memverifikasi...' : 'Lanjutkan'}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             <AnimatePresence>
                 {flyingAnim && cartIconRect && (

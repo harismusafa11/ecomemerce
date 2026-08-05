@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import prisma from './db.js';
-import { hashPassword, verifyPassword, sanitizeUser, isValidEmail } from '../lib/security.js';
+import { hashPassword, verifyPassword, sanitizeUser, isValidEmail, generateAuthToken, verifyAuthToken } from '../lib/security.js';
 
 // Prisma Postgres Database Integration - Connected
 dotenv.config();
@@ -91,6 +91,46 @@ app.use((req, res, next) => {
     next();
 });
 
+// --- AUTHENTICATION MIDDLEWARE ---
+// Attaches the fresh user from DB to req.user when a valid Bearer token is present.
+const requireAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+        const header = req.headers.authorization || '';
+        const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+        const payload = token ? verifyAuthToken(token) : null;
+        if (!payload) {
+            return res.status(401).json({ error: 'Unauthorized - silakan masuk kembali' });
+        }
+        const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized - akun tidak ditemukan' });
+        }
+        (req as any).user = user;
+        next();
+    } catch (error) {
+        console.error('Auth middleware error:', error);
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+};
+
+const requireAdmin = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    await requireAuth(req, res, () => {
+        const user = (req as any).user;
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden - hanya admin yang dapat mengakses' });
+        }
+        next();
+    });
+};
+
+// Returns true when the request user owns the requested userId OR is an admin.
+const ownsOrAdmin = (req: express.Request, targetUserId: unknown): boolean => {
+    const user = (req as any).user;
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    return user.id === Number(targetUserId);
+};
+
 // Health check endpoint (with real database connectivity test)
 const handleHealth = async (req: express.Request, res: express.Response) => {
     try {
@@ -139,7 +179,7 @@ app.get('/api/products/:id', async (req, res) => {
     }
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', requireAdmin, async (req, res) => {
     try {
         const { name, description, price, imageUrls, category, stock } = req.body;
         const product = await prisma.product.create({
@@ -199,10 +239,10 @@ const handleProductDelete = async (req: express.Request, res: express.Response) 
     }
 };
 
-app.put('/api/products/:id', handleProductUpdate);
-app.put('/api/products', handleProductUpdate);
-app.delete('/api/products/:id', handleProductDelete);
-app.delete('/api/products', handleProductDelete);
+app.put('/api/products/:id', requireAdmin, handleProductUpdate);
+app.put('/api/products', requireAdmin, handleProductUpdate);
+app.delete('/api/products/:id', requireAdmin, handleProductDelete);
+app.delete('/api/products', requireAdmin, handleProductDelete);
 
 // --- PRODUCT VIEWS (analytics) ---
 app.post('/api/product-views', async (req, res) => {
@@ -293,11 +333,12 @@ app.get('/api/reviews/product/:productId', async (req, res) => {
     }
 });
 
-app.post('/api/reviews', async (req, res) => {
+app.post('/api/reviews', requireAuth, async (req, res) => {
     try {
-        const { productId, userId, rating, comment } = req.body || {};
+        const authUser = (req as any).user;
+        const { productId, rating, comment } = req.body || {};
         const id = Number(productId);
-        const uid = Number(userId);
+        const uid = Number(authUser.id); // always use the authenticated user
         const rate = Number(rating);
         if (isNaN(id) || isNaN(uid) || isNaN(rate)) {
             return res.status(400).json({ error: 'productId, userId, and rating are required' });
@@ -365,7 +406,8 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        return res.json(sanitizeUser(user));
+        const token = generateAuthToken(user.id);
+        return res.json({ user: sanitizeUser(user), token });
     } catch (error) {
         console.error('Login error:', error);
         return res.status(500).json({ error: 'Login failed' });
@@ -411,14 +453,15 @@ app.post('/api/register', async (req, res) => {
             },
         });
 
-        return res.status(201).json(sanitizeUser(user));
+        const token = generateAuthToken(user.id);
+        return res.status(201).json({ user: sanitizeUser(user), token });
     } catch (error) {
         console.error('Registration error:', error);
         return res.status(500).json({ error: 'Registration failed' });
     }
 });
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', requireAdmin, async (req, res) => {
     try {
         const users = await prisma.user.findMany({
             select: {
@@ -437,13 +480,20 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-app.put('/api/users/:id', async (req, res) => {
+app.put('/api/users/:id', requireAdmin, async (req, res) => {
     try {
         const userId = Number(req.params.id);
         if (isNaN(userId)) {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
         const { name, email, isAdmin } = req.body || {};
+
+        // Prevent an admin from demoting their own account (avoid lockout)
+        const requester = (req as any).user;
+        if (requester && requester.id === userId && isAdmin !== undefined && Boolean(isAdmin) === false) {
+            return res.status(400).json({ error: 'Tidak dapat menghapus hak admin pada akun sendiri' });
+        }
+
         const user = await prisma.user.update({
             where: { id: userId },
             data: {
@@ -466,12 +516,19 @@ app.put('/api/users/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
     try {
         const userId = Number(req.params.id);
         if (isNaN(userId)) {
             return res.status(400).json({ error: 'Invalid user ID' });
         }
+
+        // Prevent an admin from deleting their own account
+        const requester = (req as any).user;
+        if (requester && requester.id === userId) {
+            return res.status(400).json({ error: 'Tidak dapat menghapus akun sendiri' });
+        }
+
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -484,10 +541,13 @@ app.delete('/api/users/:id', async (req, res) => {
 // --- ONGKIR / SHIPPING CALCULATOR ---
 app.all('/api/ongkir', async (req, res) => {
     try {
-        const BINDERBYTE_API_KEY = process.env.BINDERBYTE_API_KEY || '61af8cfe84f6a0cebbe7ff3c37d5839c1a2341e8969c3d20d9137bb98434578b';
+        const BINDERBYTE_API_KEY = process.env.BINDERBYTE_API_KEY || '';
         const searchTerm = String(req.query.search || req.body?.search || '').trim();
 
         if (searchTerm) {
+            if (!BINDERBYTE_API_KEY) {
+                return res.json({ status: 200, data: [] });
+            }
             try {
                 const url = `https://api.binderbyte.com/v1/locations?search=${encodeURIComponent(searchTerm)}&api_key=${BINDERBYTE_API_KEY}`;
                 const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -565,8 +625,11 @@ app.all('/api/ongkir', async (req, res) => {
 });
 
 // --- USER ADDRESSES ---
-app.get('/api/addresses/:userId', async (req, res) => {
+app.get('/api/addresses/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const addresses = await prisma.userAddress.findMany({
             where: { userId: Number(req.params.userId) },
             orderBy: { isPrimary: 'desc' },
@@ -577,20 +640,22 @@ app.get('/api/addresses/:userId', async (req, res) => {
     }
 });
 
-app.post('/api/addresses', async (req, res) => {
+app.post('/api/addresses', requireAuth, async (req, res) => {
     try {
-        const { userId, recipientName, phone, province, city, district, village, postalCode, fullAddress, isPrimary } = req.body;
+        const authUser = (req as any).user;
+        const { recipientName, phone, province, city, district, village, postalCode, fullAddress, isPrimary } = req.body;
+        const userId = Number(authUser.id); // always use the authenticated user
 
         if (isPrimary) {
             await prisma.userAddress.updateMany({
-                where: { userId: Number(userId) },
+                where: { userId },
                 data: { isPrimary: false },
             });
         }
 
         const address = await prisma.userAddress.create({
             data: {
-                userId: Number(userId),
+                userId,
                 recipientName: String(recipientName),
                 phone: String(phone),
                 province: String(province),
@@ -609,10 +674,16 @@ app.post('/api/addresses', async (req, res) => {
     }
 });
 
-app.delete('/api/addresses/:id', async (req, res) => {
+app.delete('/api/addresses/:id', requireAuth, async (req, res) => {
     try {
+        const addressId = Number(req.params.id);
+        const address = await prisma.userAddress.findUnique({ where: { id: addressId } });
+        if (!address) return res.status(404).json({ error: 'Address not found' });
+        if (!ownsOrAdmin(req, address.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         await prisma.userAddress.delete({
-            where: { id: Number(req.params.id) },
+            where: { id: addressId },
         });
         res.json({ message: 'Address deleted successfully' });
     } catch (error) {
@@ -621,15 +692,40 @@ app.delete('/api/addresses/:id', async (req, res) => {
 });
 
 // --- ORDERS ---
-app.post('/api/orders', async (req, res) => {
+app.post('/api/orders', requireAuth, async (req, res) => {
     try {
-        const { userId, items, total, shippingCost, shippingCourier, province, city, district, village, fullAddress } = req.body;
+        const authUser = (req as any).user;
+        const { items, shippingCost, shippingCourier, province, city, district, village, fullAddress, discountAmount } = req.body || {};
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'Items required' });
+        }
+
+        const productIds = [...new Set(items.map((i: any) => Number(i.id ?? i.productId)))].filter(n => !isNaN(n));
+        const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+        const productMap = new Map(products.map(p => [p.id, p]));
+
+        let subtotal = 0;
+        const orderItemRows: { productId: number; quantity: number; price: number }[] = [];
+        for (const item of items) {
+            const productId = Number(item.id ?? item.productId);
+            const qty = Math.max(1, Math.floor(Number(item.quantity) || 1));
+            const product = productMap.get(productId);
+            if (!product) return res.status(400).json({ error: `Produk tidak ditemukan: #${productId}` });
+            if (product.stock < qty) return res.status(409).json({ error: `Stok "${product.name}" tidak mencukupi (tersisa ${product.stock})` });
+            subtotal += product.price * qty;
+            orderItemRows.push({ productId, quantity: qty, price: product.price });
+        }
+
+        const shipping = Math.max(0, Number(shippingCost) || 0);
+        const discount = Math.min(Math.max(0, Number(discountAmount) || 0), subtotal);
+        const total = Math.max(0, subtotal - discount + shipping);
 
         const order = await prisma.order.create({
             data: {
-                userId: Number(userId),
-                total: Number(total),
-                shippingCost: Number(shippingCost || 0),
+                userId: authUser.id,
+                total,
+                shippingCost: shipping,
                 shippingCourier: shippingCourier ? String(shippingCourier) : undefined,
                 province: province ? String(province) : undefined,
                 city: city ? String(city) : undefined,
@@ -638,15 +734,34 @@ app.post('/api/orders', async (req, res) => {
                 fullAddress: fullAddress ? String(fullAddress) : undefined,
                 status: 'Pending Payment',
                 items: {
-                    create: items.map((item: any) => ({
-                        productId: Number(item.id || item.productId),
-                        quantity: Number(item.quantity),
-                        price: Number(item.price),
-                    })),
+                    create: orderItemRows,
                 },
             },
             include: { items: true },
         });
+
+        // Decrement stock with guarded updates; rollback order + stock if any fails
+        const decremented: { productId: number; quantity: number }[] = [];
+        for (const row of orderItemRows) {
+            const result = await prisma.product.updateMany({
+                where: { id: row.productId, stock: { gte: row.quantity } },
+                data: { stock: { decrement: row.quantity } },
+            });
+            if (result.count === 0) {
+                for (const d of decremented) {
+                    await prisma.product.updateMany({
+                        where: { id: d.productId },
+                        data: { stock: { increment: d.quantity } },
+                    });
+                }
+                await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+                await prisma.order.delete({ where: { id: order.id } });
+                const product = productMap.get(row.productId);
+                return res.status(409).json({ error: `Stok "${product?.name}" tidak mencukupi` });
+            }
+            decremented.push({ productId: row.productId, quantity: row.quantity });
+        }
+
         res.json(order);
     } catch (error) {
         console.error('Order creation error:', error);
@@ -654,7 +769,7 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAdmin, async (req, res) => {
     try {
         const orders = await prisma.order.findMany({
             include: { user: true, items: { include: { product: true } } },
@@ -666,8 +781,11 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
-app.get('/api/orders/user/:userId', async (req, res) => {
+app.get('/api/orders/user/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const orders = await prisma.order.findMany({
             where: { userId: Number(req.params.userId) },
             include: { items: { include: { product: true } } },
@@ -679,11 +797,11 @@ app.get('/api/orders/user/:userId', async (req, res) => {
     }
 });
 
-app.put('/api/orders/:id/status', async (req, res) => {
+app.put('/api/orders/:id/status', requireAdmin, async (req, res) => {
     try {
         const { status, trackingNumber } = req.body;
         const order = await prisma.order.update({
-            where: { id: req.params.id },
+            where: { id: String(req.params.id) },
             data: {
                 status,
                 trackingNumber: trackingNumber || undefined
@@ -696,8 +814,11 @@ app.put('/api/orders/:id/status', async (req, res) => {
 });
 
 // --- CART ---
-app.get('/api/cart/:userId', async (req, res) => {
+app.get('/api/cart/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const cart = await prisma.cart.findUnique({
             where: { userId: Number(req.params.userId) },
             include: { items: { include: { product: true } } },
@@ -708,9 +829,11 @@ app.get('/api/cart/:userId', async (req, res) => {
     }
 });
 
-app.post('/api/cart', async (req, res) => {
+app.post('/api/cart', requireAuth, async (req, res) => {
     try {
-        const { userId, productId, quantity } = req.body;
+        const authUser = (req as any).user;
+        const { productId, quantity } = req.body;
+        const userId = Number(authUser.id); // always use the authenticated user
 
         // Ensure cart exists
         let cart = await prisma.cart.findUnique({ where: { userId } });
@@ -723,16 +846,16 @@ app.post('/api/cart', async (req, res) => {
             where: {
                 cartId_productId: {
                     cartId: cart.id,
-                    productId: productId,
+                    productId: Number(productId),
                 },
             },
             update: {
-                quantity: { increment: quantity },
+                quantity: { increment: Number(quantity) },
             },
             create: {
                 cartId: cart.id,
-                productId: productId,
-                quantity: quantity,
+                productId: Number(productId),
+                quantity: Number(quantity),
             },
             include: { product: true },
         });
@@ -744,10 +867,13 @@ app.post('/api/cart', async (req, res) => {
     }
 });
 
-app.delete('/api/cart/:userId/item/:productId', async (req, res) => {
+app.delete('/api/cart/:userId/item/:productId', requireAuth, async (req, res) => {
     try {
-        const { userId, productId } = req.params;
-        const cart = await prisma.cart.findUnique({ where: { userId: Number(userId) } });
+        const { productId } = req.params;
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const cart = await prisma.cart.findUnique({ where: { userId: Number(req.params.userId) } });
         if (cart) {
             await prisma.cartItem.delete({
                 where: {
@@ -764,8 +890,11 @@ app.delete('/api/cart/:userId/item/:productId', async (req, res) => {
     }
 });
 
-app.delete('/api/cart/:userId', async (req, res) => {
+app.delete('/api/cart/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const { userId } = req.params;
         const cart = await prisma.cart.findUnique({ where: { userId: Number(userId) } });
         if (cart) {
@@ -778,25 +907,26 @@ app.delete('/api/cart/:userId', async (req, res) => {
 });
 
 // --- WISHLIST ---
-app.get('/api/wishlist/:userId', async (req, res) => {
+app.get('/api/wishlist/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const wishlist = await prisma.wishlist.findUnique({
             where: { userId: Number(req.params.userId) },
             include: { items: { include: { product: true } } },
         });
-        // Return array of product IDs to match frontend expectation, or full objects?
-        // Frontend currently expects number[]. Let's stick to that for now or update frontend.
-        // Actually, let's return the full items and update frontend to handle it, or map it here.
-        // For now, let's return the items and let frontend decide.
         res.json(wishlist ? wishlist.items : []);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch wishlist' });
     }
 });
 
-app.post('/api/wishlist', async (req, res) => {
+app.post('/api/wishlist', requireAuth, async (req, res) => {
     try {
-        const { userId, productId } = req.body;
+        const authUser = (req as any).user;
+        const { productId } = req.body;
+        const userId = Number(authUser.id); // always use the authenticated user
 
         let wishlist = await prisma.wishlist.findUnique({ where: { userId } });
         if (!wishlist) {
@@ -806,7 +936,7 @@ app.post('/api/wishlist', async (req, res) => {
         await prisma.wishlistItem.create({
             data: {
                 wishlistId: wishlist.id,
-                productId: productId,
+                productId: Number(productId),
             },
         });
 
@@ -817,10 +947,13 @@ app.post('/api/wishlist', async (req, res) => {
     }
 });
 
-app.delete('/api/wishlist/:userId/item/:productId', async (req, res) => {
+app.delete('/api/wishlist/:userId/item/:productId', requireAuth, async (req, res) => {
     try {
-        const { userId, productId } = req.params;
-        const wishlist = await prisma.wishlist.findUnique({ where: { userId: Number(userId) } });
+        const { productId } = req.params;
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const wishlist = await prisma.wishlist.findUnique({ where: { userId: Number(req.params.userId) } });
         if (wishlist) {
             await prisma.wishlistItem.delete({
                 where: {
@@ -865,14 +998,16 @@ app.get('/api/vouchers', async (req, res) => {
     }
 });
 
-app.post('/api/vouchers/claim', async (req, res) => {
+app.post('/api/vouchers/claim', requireAuth, async (req, res) => {
     try {
-        const { userId, voucherId } = req.body;
+        const authUser = (req as any).user;
+        const { voucherId } = req.body;
+        const userId = Number(authUser.id); // always use the authenticated user
         await prisma.user.update({
             where: { id: userId },
             data: {
                 claimedVouchers: {
-                    connect: { id: voucherId }
+                    connect: { id: Number(voucherId) }
                 }
             }
         });
@@ -882,8 +1017,11 @@ app.post('/api/vouchers/claim', async (req, res) => {
     }
 });
 
-app.get('/api/vouchers/user/:userId', async (req, res) => {
+app.get('/api/vouchers/user/:userId', requireAuth, async (req, res) => {
     try {
+        if (!ownsOrAdmin(req, req.params.userId)) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
         const userId = Number(req.params.userId);
 
         // Get vouchers claimed by this user
@@ -907,9 +1045,11 @@ app.get('/api/vouchers/user/:userId', async (req, res) => {
     }
 });
 
-app.post('/api/vouchers/validate', async (req, res) => {
+app.post('/api/vouchers/validate', requireAuth, async (req, res) => {
     try {
-        const { userId, code } = req.body;
+        const authUser = (req as any).user;
+        const { code } = req.body;
+        const userId = Number(authUser.id); // always use the authenticated user
 
         // First, find the voucher
         const voucher = await prisma.voucher.findUnique({
@@ -928,7 +1068,7 @@ app.post('/api/vouchers/validate', async (req, res) => {
 
         // Check if user has claimed this voucher
         const user = await prisma.user.findUnique({
-            where: { id: Number(userId) },
+            where: { id: userId },
             include: {
                 claimedVouchers: {
                     where: { id: voucher.id }
@@ -947,7 +1087,7 @@ app.post('/api/vouchers/validate', async (req, res) => {
     }
 });
 
-app.post('/api/vouchers', async (req, res) => {
+app.post('/api/vouchers', requireAdmin, async (req, res) => {
     try {
         const { code, discountPercentage, startDate, endDate } = req.body;
         const voucher = await prisma.voucher.create({
@@ -965,7 +1105,7 @@ app.post('/api/vouchers', async (req, res) => {
     }
 });
 
-app.put('/api/vouchers/:id', async (req, res) => {
+app.put('/api/vouchers/:id', requireAdmin, async (req, res) => {
     try {
         const { code, discountPercentage, startDate, endDate } = req.body;
         const voucher = await prisma.voucher.update({
@@ -984,7 +1124,7 @@ app.put('/api/vouchers/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/vouchers/:id', async (req, res) => {
+app.delete('/api/vouchers/:id', requireAdmin, async (req, res) => {
     try {
         await prisma.voucher.delete({
             where: { id: Number(req.params.id) },
@@ -1015,6 +1155,17 @@ app.get('/sitemap.xml', async (req, res) => {
             { url: `${baseUrl}/tentang-kami`, priority: '0.8', changefreq: 'weekly' },
             { url: `${baseUrl}/kontak`, priority: '0.8', changefreq: 'weekly' },
             { url: `${baseUrl}/kupon`, priority: '0.7', changefreq: 'weekly' },
+            { url: `${baseUrl}/blog`, priority: '0.8', changefreq: 'weekly' },
+            { url: `${baseUrl}/faq`, priority: '0.6', changefreq: 'monthly' },
+            { url: `${baseUrl}/privasi`, priority: '0.3', changefreq: 'monthly' },
+            { url: `${baseUrl}/syarat-ketentuan`, priority: '0.3', changefreq: 'monthly' },
+        ];
+
+        const blogSlugs = [
+            'perawatan-keris-pusaka-sepuh',
+            'mengenal-media-bertuah',
+            'tips-memilih-pusaka-pemula',
+            'peran-ruwatan-keilmuan',
         ];
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -1026,6 +1177,15 @@ app.get('/sitemap.xml', async (req, res) => {
             xml += `    <lastmod>${lastmodNow}</lastmod>\n`;
             xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
             xml += `    <priority>${page.priority}</priority>\n`;
+            xml += `  </url>\n`;
+        }
+
+        for (const slug of blogSlugs) {
+            xml += `  <url>\n`;
+            xml += `    <loc>${xmlEscape(`${baseUrl}/blog/${slug}`)}</loc>\n`;
+            xml += `    <lastmod>${lastmodNow}</lastmod>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n`;
+            xml += `    <priority>0.6</priority>\n`;
             xml += `  </url>\n`;
         }
 
@@ -1071,6 +1231,10 @@ Allow: /produk/
 Allow: /tentang-kami
 Allow: /kontak
 Allow: /kupon
+Allow: /blog
+Allow: /faq
+Allow: /privasi
+Allow: /syarat-ketentuan
 Disallow: /api/
 Disallow: /admin
 Disallow: /masuk

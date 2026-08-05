@@ -1,5 +1,5 @@
 import React from 'react';
-import { REAL_SOCIAL_CHANNELS } from '../constants';
+import { REAL_SOCIAL_CHANNELS, WHATSAPP_NUMBER } from '../constants';
 import { useTranslations } from '../hooks/useTranslations';
 import { MessageCircle, Clock, ExternalLink, ShieldCheck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -9,7 +9,7 @@ const ContactPage: React.FC = () => {
 
     const handleDirectWhatsApp = () => {
         const message = encodeURIComponent('Halo Admin & Pengasuh Tapak Pamungkas, saya ingin berkonsultasi mengenai pemaharan pusaka.');
-        window.open('https://wa.me/6285880231697?text=' + message, '_blank');
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
     };
 
     return (

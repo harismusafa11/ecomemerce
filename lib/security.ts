@@ -56,6 +56,46 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
+ * Generate a signed auth token (stateless HMAC) for a user id.
+ * Format: base64url("<userId>.<expiryMs>") + "." + HMAC-SHA256(payload)
+ */
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export function generateAuthToken(userId: number): string {
+    const expires = Date.now() + TOKEN_TTL_MS;
+    const payload = `${userId}.${expires}`;
+    const encoded = Buffer.from(payload).toString('base64url');
+    const signature = crypto.createHmac('sha256', SECURITY_SALT).update(payload).digest('base64url');
+    return `${encoded}.${signature}`;
+}
+
+/**
+ * Verify an auth token. Returns { userId, expires } or null if invalid/expired.
+ */
+export function verifyAuthToken(token: string): { userId: number; expires: number } | null {
+    try {
+        if (!token || typeof token !== 'string') return null;
+        const parts = token.split('.');
+        if (parts.length !== 2) return null;
+        const [encoded, signature] = parts;
+        const payload = Buffer.from(encoded, 'base64url').toString();
+        const expected = crypto.createHmac('sha256', SECURITY_SALT).update(payload).digest('base64url');
+        const sigBuf = Buffer.from(signature);
+        const expBuf = Buffer.from(expected);
+        if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+        const dotIndex = payload.indexOf('.');
+        if (dotIndex <= 0) return null;
+        const userId = Number(payload.slice(0, dotIndex));
+        const expires = Number(payload.slice(dotIndex + 1));
+        if (!Number.isFinite(userId) || !Number.isFinite(expires) || userId <= 0) return null;
+        if (Date.now() > expires) return null;
+        return { userId, expires };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Safely format error message without leaking internal database schemas or stacktraces
  */
 export function safeErrorResponse(res: VercelResponse, statusCode: number, clientMessage: string, internalError?: any) {

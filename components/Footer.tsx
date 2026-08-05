@@ -35,6 +35,8 @@ const Footer: React.FC<FooterProps> = ({ onAdminTrigger, onNavigate }) => {
                         <ul className="space-y-2.5 text-xs">
                             <li><a onClick={() => onNavigate('allProducts')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopProducts')}</a></li>
                             <li><a onClick={() => onNavigate('vouchers')} className="cursor-pointer hover:text-amber-400 transition-colors">Kupon Promo</a></li>
+                            <li><a onClick={() => onNavigate('blog')} className="cursor-pointer hover:text-amber-400 transition-colors">Blog & Wawasan</a></li>
+                            <li><a onClick={() => onNavigate('faq')} className="cursor-pointer hover:text-amber-400 transition-colors">FAQ / Pusat Bantuan</a></li>
                             <li><a onClick={() => onNavigate('about')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopAbout')}</a></li>
                             <li><a onClick={() => onNavigate('contact')} className="cursor-pointer hover:text-amber-400 transition-colors">{t('footer.shopContact')}</a></li>
                         </ul>
@@ -66,9 +68,9 @@ const Footer: React.FC<FooterProps> = ({ onAdminTrigger, onNavigate }) => {
                         &copy; {new Date().getFullYear()} Tapak Pamungkas. {t('footer.copyright')}.
                     </p>
                     <div className="flex gap-4 text-[11px]">
-                        <span>Privasi & Keamanan</span>
+                        <a onClick={() => onNavigate('privasi')} className="cursor-pointer hover:text-amber-400 transition-colors">Privasi & Keamanan</a>
                         <span>•</span>
-                        <span>Syarat & Ketentuan</span>
+                        <a onClick={() => onNavigate('syarat')} className="cursor-pointer hover:text-amber-400 transition-colors">Syarat & Ketentuan</a>
                     </div>
                 </div>
             </div>

@@ -69,4 +69,4 @@ export interface SocialLink {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export type Page = 'home' | 'about' | 'contact' | 'product' | 'cart' | 'checkout' | 'adminLogin' | 'adminPanel' | 'login' | 'register' | 'allProducts' | 'orderConfirmation' | 'wishlist' | 'vouchers' | 'orderHistory' | 'profile';
+export type Page = 'home' | 'about' | 'contact' | 'product' | 'cart' | 'checkout' | 'adminLogin' | 'adminPanel' | 'login' | 'register' | 'allProducts' | 'orderConfirmation' | 'wishlist' | 'vouchers' | 'orderHistory' | 'profile' | 'privasi' | 'syarat' | 'faq' | 'blog' | 'blogArticle';

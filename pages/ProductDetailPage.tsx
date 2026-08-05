@@ -4,6 +4,7 @@ import Carousel from '../components/ui/carousel';
 import ProductCard from '../components/ProductCard';
 import VoucherCard from '../components/VoucherCard';
 import ImageLightbox from '../components/ui/ImageLightbox';
+import { WHATSAPP_NUMBER } from '../constants';
 import { useTranslations } from '../hooks/useTranslations';
 import { api } from '../services/api';
 import { ArrowLeft, ShoppingBag, Heart, MessageCircle, ShieldCheck, CheckCircle2, Award, Truck, ChevronRight, Share2, Info, Sparkles, Crown, Star } from 'lucide-react';
@@ -134,7 +135,7 @@ const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         const message = encodeURIComponent(
             `Halo Admin Tapak Pamungkas, saya bermaksud memaharkan produk:\n\n*${product.name}*\nHarga Mahar: Rp ${product.price.toLocaleString('id-ID')}\nKategori: ${product.category}\n\nMohon informasi ketersediaan & petunjuk penyelarasan.`
         );
-        window.open(`https://wa.me/6281234567890?text=${message}`, '_blank');
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
     };
 
     const handleImageClick = (index: number) => {

@@ -3,6 +3,7 @@ import { Product } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingBag, Heart, MessageCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import LazyImage from './ui/LazyImage';
+import { WHATSAPP_NUMBER } from '../constants';
 import { useTranslations } from '../hooks/useTranslations';
 
 interface QuickViewModalProps {
@@ -40,7 +41,7 @@ const QuickViewModal: React.FC<QuickViewModalProps> = ({
     const message = encodeURIComponent(
       `Halo Tapak Pamungkas, saya tertarik dengan produk:\n\n*${product.name}*\nHarga: Rp ${product.price.toLocaleString('id-ID')}\nKategori: ${product.category}\n\nApakah produk ini masih tersedia?`
     );
-    window.open(`https://wa.me/6281234567890?text=${message}`, '_blank');
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   return (

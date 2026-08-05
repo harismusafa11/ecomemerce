@@ -1,6 +1,10 @@
 import React from 'react';
 import { SocialLink } from './types';
 
+// Official WhatsApp number (international format, no + or dashes) for wa.me links
+export const WHATSAPP_NUMBER = '6285880231697';
+export const WHATSAPP_DISPLAY = '+62 858-8023-1697';
+
 export const CATEGORIES = [
     'Keilmuan',
     'Media Bertuah',
