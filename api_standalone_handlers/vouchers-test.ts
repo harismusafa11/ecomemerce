@@ -1,56 +1,44 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
+import { setSecurityHeaders, verifyAuthToken, getTokenFromCookie, safeErrorResponse } from '../lib/security';
 
-// Create Prisma client instance
 const prisma = new PrismaClient();
 
+async function authenticate(req: VercelRequest) {
+  const cookieToken = getTokenFromCookie(req.headers.cookie);
+  const header = req.headers.authorization || '';
+  const bearerToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  const token = cookieToken || bearerToken;
+  const payload = token ? verifyAuthToken(token) : null;
+  if (!payload) return null;
+  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  return user || null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setSecurityHeaders(res);
 
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    try {
-        console.log('[VOUCHERS] Starting query...');
-        console.log('[VOUCHERS] DATABASE_URL exists:', !!process.env.DATABASE_URL);
+  try {
+    const user = await authenticate(req);
+    if (!user || !user.isAdmin) return safeErrorResponse(res, 403, 'Forbidden - hanya admin');
 
-        // Ultra-simple query with explicit select
-        const vouchers = await prisma.voucher.findMany({
-            select: {
-                id: true,
-                code: true,
-                discountPercentage: true,
-                startDate: true,
-                endDate: true,
-                productId: true,
-                createdAt: true,
-                updatedAt: true
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
+    const vouchers = await prisma.voucher.findMany({
+      select: { id: true, code: true, discountPercentage: true, startDate: true, endDate: true, productId: true, createdAt: true, updatedAt: true },
+      orderBy: { createdAt: 'desc' }
+    });
 
-        console.log('[VOUCHERS] Found:', vouchers.length, 'vouchers');
-
-        return res.status(200).json(vouchers);
-    } catch (error) {
-        console.error('[VOUCHERS] Error:', error);
-
-        return res.status(500).json({
-            error: 'Failed to fetch vouchers',
-            message: error instanceof Error ? error.message : String(error),
-            type: error instanceof Error ? error.constructor.name : typeof error
-        });
-    } finally {
-        await prisma.$disconnect();
-    }
+    return res.status(200).json(vouchers);
+  } catch (error) {
+    return safeErrorResponse(res, 500, 'Gagal mengambil data voucher', error);
+  } finally {
+    await prisma.$disconnect();
+  }
 }

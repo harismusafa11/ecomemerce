@@ -25,8 +25,7 @@ const authedFetch = (url: string, options: RequestInit = {}): Promise<Response> 
     const token = getToken();
     const headers = new Headers(options.headers);
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    return fetch(url, { ...options, headers }).then(response => {
-        // Trigger soft re-auth only for expired sessions, not for auth endpoints themselves
+    return fetch(url, { ...options, headers, credentials: 'include' as RequestCredentials }).then(response => {
         if (response.status === 401 && unauthorizedHandler && !url.includes('/login') && !url.includes('/register')) {
             setTimeout(() => {
                 try { unauthorizedHandler && unauthorizedHandler(); } catch (e) {}

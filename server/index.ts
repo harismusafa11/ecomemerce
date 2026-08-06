@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import prisma from './db.js';
-import { hashPassword, verifyPassword, sanitizeUser, isValidEmail, generateAuthToken, verifyAuthToken } from '../lib/security.js';
+import { hashPassword, verifyPassword, sanitizeUser, isValidEmail, generateAuthToken, verifyAuthToken, setAuthCookie, clearAuthCookie, getTokenFromCookie, safeErrorResponse, sanitizeInput, isValidPassword } from '../lib/security.js';
 
 // Prisma Postgres Database Integration - Connected
 dotenv.config();
@@ -64,27 +65,38 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from '../lib/auth.js';
 
 app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
+
+app.use((req, res, next) => {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.optimole.com https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.binderbyte.com https://generativelanguage.googleapis.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'");
+    next();
+});
 
 // Better Auth Router
 app.use('/api/auth', toNodeHandler(auth));
 
 // Rate limiting (simple implementation)
-const requestCounts = new Map();
+const requestCounts = new Map<string, { count: number; resetAt: number }>();
 app.use((req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
     const now = Date.now();
-    const windowMs = 60000; // 1 minute
-    const maxRequests = 100; // max requests per window
+    const windowMs = 60000;
+    const maxRequests = 100;
 
-    if (!requestCounts.has(ip)) {
-        requestCounts.set(ip, []);
+    let entry = requestCounts.get(ip);
+    if (!entry || now > entry.resetAt) {
+        entry = { count: 0, resetAt: now + windowMs };
     }
+    entry.count++;
+    requestCounts.set(ip, entry);
 
-    const requests = requestCounts.get(ip).filter((time: number) => now - time < windowMs);
-    requests.push(now);
-    requestCounts.set(ip, requests);
-
-    if (requests.length > maxRequests) {
+    const path = req.path.toLowerCase();
+    const isAuthEndpoint = path.includes('/login') || path.includes('/register');
+    const authLimit = 10;
+    if (isAuthEndpoint && entry.count > authLimit) {
+        return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi nanti.' });
+    }
+    if (entry.count > maxRequests) {
         return res.status(429).json({ error: 'Too many requests' });
     }
 
@@ -95,8 +107,10 @@ app.use((req, res, next) => {
 // Attaches the fresh user from DB to req.user when a valid Bearer token is present.
 const requireAuth = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try {
+        const cookieToken = getTokenFromCookie(req.headers.cookie);
         const header = req.headers.authorization || '';
-        const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+        const bearerToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+        const token = cookieToken || bearerToken;
         const payload = token ? verifyAuthToken(token) : null;
         if (!payload) {
             return res.status(401).json({ error: 'Unauthorized - silakan masuk kembali' });
@@ -108,7 +122,7 @@ const requireAuth = async (req: express.Request, res: express.Response, next: ex
         (req as any).user = user;
         next();
     } catch (error) {
-        console.error('Auth middleware error:', error);
+        console.error('Auth middleware error:', error instanceof Error ? error.message : error);
         return res.status(401).json({ error: 'Unauthorized' });
     }
 };
@@ -141,10 +155,11 @@ const handleHealth = async (req: express.Request, res: express.Response) => {
             timestamp: new Date().toISOString(),
         });
     } catch (error) {
+        console.error('Health check error:', error instanceof Error ? error.message : error);
         res.status(500).json({
             status: 'error',
             database: 'disconnected',
-            error: error instanceof Error ? error.message : String(error),
+            error: 'Database connection failed',
         });
     }
 };
@@ -159,10 +174,9 @@ app.get('/api/products', async (req, res) => {
         });
         return res.json(products);
     } catch (error) {
-        console.error('Error fetching products from database:', error);
+        console.error('Error fetching products:', error instanceof Error ? error.message : error);
         return res.status(500).json({
-            error: 'Failed to fetch products from database',
-            details: error instanceof Error ? error.message : String(error)
+            error: 'Gagal mengambil data produk'
         });
     }
 });
@@ -184,17 +198,17 @@ app.post('/api/products', requireAdmin, async (req, res) => {
         const { name, description, price, imageUrls, category, stock } = req.body;
         const product = await prisma.product.create({
             data: {
-                name,
-                description,
+                name: sanitizeInput(name, 200),
+                description: sanitizeInput(description || '', 5000),
                 price: Number(price),
-                imageUrls,
-                category,
-                stock: Number(stock),
+                imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : [],
+                category: sanitizeInput(category || '', 100),
+                stock: Math.max(0, Number(stock) || 0),
             },
         });
         res.json(product);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to create product' });
+        res.status(500).json({ error: 'Gagal membuat produk' });
     }
 });
 
@@ -208,18 +222,18 @@ const handleProductUpdate = async (req: express.Request, res: express.Response) 
         const product = await prisma.product.update({
             where: { id: productId },
             data: {
-                name: name ? String(name).trim() : undefined,
-                description: description ? String(description).trim() : undefined,
+                name: name ? sanitizeInput(String(name), 200) : undefined,
+                description: description ? sanitizeInput(String(description), 5000) : undefined,
                 price: price !== undefined ? Number(price) : undefined,
-                imageUrls: Array.isArray(imageUrls) ? imageUrls : undefined,
-                category: category ? String(category).trim() : undefined,
-                stock: stock !== undefined ? Number(stock) : undefined,
+                imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : undefined,
+                category: category ? sanitizeInput(String(category), 100) : undefined,
+                stock: stock !== undefined ? Math.max(0, Number(stock)) : undefined,
             },
         });
         res.json(product);
     } catch (error) {
-        console.error('Update product error:', error);
-        res.status(500).json({ error: 'Failed to update product', details: error instanceof Error ? error.message : String(error) });
+        console.error('Update product error:', error instanceof Error ? error.message : error);
+        res.status(500).json({ error: 'Gagal memperbarui produk' });
     }
 };
 
@@ -384,13 +398,13 @@ app.post('/api/login', async (req, res) => {
         const { email, password } = req.body || {};
 
         if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
-            return res.status(400).json({ error: 'Email and password required' });
+            return res.status(400).json({ error: 'Email dan password wajib diisi' });
         }
 
         const trimmedEmail = email.trim().toLowerCase();
 
         if (!isValidEmail(trimmedEmail)) {
-            return res.status(400).json({ error: 'Invalid email format' });
+            return res.status(400).json({ error: 'Format email tidak valid' });
         }
 
         const user = await prisma.user.findUnique({
@@ -398,19 +412,20 @@ app.post('/api/login', async (req, res) => {
         });
 
         if (!user || !user.password) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'Email atau password salah' });
         }
 
         const isPasswordValid = verifyPassword(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Invalid credentials' });
+            return res.status(401).json({ error: 'Email atau password salah' });
         }
 
         const token = generateAuthToken(user.id);
+        setAuthCookie(res, token);
         return res.json({ user: sanitizeUser(user), token });
     } catch (error) {
-        console.error('Login error:', error);
-        return res.status(500).json({ error: 'Login failed' });
+        console.error('Login error:', error instanceof Error ? error.message : error);
+        return res.status(500).json({ error: 'Login gagal' });
     }
 });
 
@@ -419,18 +434,23 @@ app.post('/api/register', async (req, res) => {
         const { name, email, password } = req.body || {};
 
         if (!name || !email || !password) {
-            return res.status(400).json({ error: 'Name, email, and password required' });
+            return res.status(400).json({ error: 'Nama, email, dan password wajib diisi' });
         }
 
-        const trimmedName = String(name).trim();
+        const trimmedName = sanitizeInput(String(name), 100);
         const trimmedEmail = String(email).trim().toLowerCase();
 
-        if (!isValidEmail(trimmedEmail)) {
-            return res.status(400).json({ error: 'Invalid email format' });
+        if (!trimmedName) {
+            return res.status(400).json({ error: 'Nama wajib diisi' });
         }
 
-        if (String(password).length < 6) {
-            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        if (!isValidEmail(trimmedEmail)) {
+            return res.status(400).json({ error: 'Format email tidak valid' });
+        }
+
+        const passwordCheck = isValidPassword(String(password));
+        if (!passwordCheck.valid) {
+            return res.status(400).json({ error: passwordCheck.message });
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -439,7 +459,7 @@ app.post('/api/register', async (req, res) => {
         });
 
         if (existingUser) {
-            return res.status(409).json({ error: 'Email already registered' });
+            return res.status(409).json({ error: 'Email sudah terdaftar' });
         }
 
         const hashedPassword = hashPassword(String(password));
@@ -454,10 +474,11 @@ app.post('/api/register', async (req, res) => {
         });
 
         const token = generateAuthToken(user.id);
+        setAuthCookie(res, token);
         return res.status(201).json({ user: sanitizeUser(user), token });
     } catch (error) {
-        console.error('Registration error:', error);
-        return res.status(500).json({ error: 'Registration failed' });
+        console.error('Registration error:', error instanceof Error ? error.message : error);
+        return res.status(500).json({ error: 'Registrasi gagal' });
     }
 });
 
@@ -989,11 +1010,9 @@ app.get('/api/vouchers', async (req, res) => {
         });
         res.json(vouchers);
     } catch (error) {
-        console.error('Vouchers fetch error:', error);
+        console.error('Vouchers fetch error:', error instanceof Error ? error.message : error);
         res.status(500).json({
-            error: 'Failed to fetch vouchers',
-            details: error instanceof Error ? error.message : String(error),
-            stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
+            error: 'Gagal mengambil data voucher'
         });
     }
 });
@@ -1037,10 +1056,9 @@ app.get('/api/vouchers/user/:userId', requireAuth, async (req, res) => {
 
         res.json(vouchers);
     } catch (error) {
-        console.error('User vouchers fetch error:', error);
+        console.error('User vouchers fetch error:', error instanceof Error ? error.message : error);
         res.status(500).json({
-            error: 'Failed to fetch user vouchers',
-            details: error instanceof Error ? error.message : String(error)
+            error: 'Gagal mengambil data voucher pengguna'
         });
     }
 });
@@ -1092,16 +1110,16 @@ app.post('/api/vouchers', requireAdmin, async (req, res) => {
         const { code, discountPercentage, startDate, endDate } = req.body;
         const voucher = await prisma.voucher.create({
             data: {
-                code,
-                discountPercentage: Number(discountPercentage),
+                code: sanitizeInput(code, 50).toUpperCase(),
+                discountPercentage: Math.min(100, Math.max(0, Number(discountPercentage) || 0)),
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
             },
         });
         res.json(voucher);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create voucher' });
+        console.error(error instanceof Error ? error.message : error);
+        res.status(500).json({ error: 'Gagal membuat voucher' });
     }
 });
 
@@ -1111,16 +1129,16 @@ app.put('/api/vouchers/:id', requireAdmin, async (req, res) => {
         const voucher = await prisma.voucher.update({
             where: { id: Number(req.params.id) },
             data: {
-                code,
-                discountPercentage: Number(discountPercentage),
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
+                code: code ? sanitizeInput(code, 50).toUpperCase() : undefined,
+                discountPercentage: discountPercentage !== undefined ? Math.min(100, Math.max(0, Number(discountPercentage))) : undefined,
+                startDate: startDate ? new Date(startDate) : undefined,
+                endDate: endDate ? new Date(endDate) : undefined,
             },
         });
         res.json(voucher);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to update voucher' });
+        console.error(error instanceof Error ? error.message : error);
+        res.status(500).json({ error: 'Gagal memperbarui voucher' });
     }
 });
 

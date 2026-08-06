@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PrismaClient } from '@prisma/client';
-import { setSecurityHeaders, hashPassword, sanitizeUser, isValidEmail, safeErrorResponse } from '../lib/security';
+import { setSecurityHeaders, hashPassword, sanitizeUser, isValidEmail, generateAuthToken, setAuthCookie, safeErrorResponse, sanitizeInput, isValidPassword } from '../lib/security';
 
 const prisma = new PrismaClient();
 
@@ -22,19 +22,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return safeErrorResponse(res, 400, 'Nama, email, dan password wajib diisi');
         }
 
-        const trimmedName = String(name).trim();
+        const trimmedName = sanitizeInput(String(name), 100);
         const trimmedEmail = String(email).trim().toLowerCase();
 
-        if (trimmedName.length < 2) {
-            return safeErrorResponse(res, 400, 'Nama minimal 2 karakter');
+        if (!trimmedName) {
+            return safeErrorResponse(res, 400, 'Nama wajib diisi');
         }
 
         if (!isValidEmail(trimmedEmail)) {
             return safeErrorResponse(res, 400, 'Format email tidak valid');
         }
 
-        if (String(password).length < 6) {
-            return safeErrorResponse(res, 400, 'Password minimal 6 karakter');
+        const passwordCheck = isValidPassword(String(password));
+        if (!passwordCheck.valid) {
+            return safeErrorResponse(res, 400, passwordCheck.message);
         }
 
         const existingUser = await prisma.user.findUnique({
@@ -65,8 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         });
 
+        const token = generateAuthToken(newUser.id);
+        setAuthCookie(res, token);
+
         const safeUser = sanitizeUser(newUser);
-        return res.status(201).json(safeUser);
+        return res.status(201).json({ user: safeUser, token });
 
     } catch (error) {
         return safeErrorResponse(res, 500, 'Gagal melakukan pendaftaran akun', error);

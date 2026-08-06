@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { setSecurityHeaders, safeErrorResponse } from '../lib/security';
 
-const BINDERBYTE_API_KEY = process.env.BINDERBYTE_API_KEY || '61af8cfe84f6a0cebbe7ff3c37d5839c1a2341e8969c3d20d9137bb98434578b';
+const BINDERBYTE_API_KEY = process.env.BINDERBYTE_API_KEY || '';
 const ORIGIN_KECAMATAN = process.env.DEFAULT_ORIGIN_KECAMATAN || 'Ulujami';
 const ORIGIN_KOTA = process.env.DEFAULT_ORIGIN_KOTA || 'Pemalang';
 const ORIGIN_PROVINSI = process.env.DEFAULT_ORIGIN_PROVINSI || 'Jawa Tengah';
