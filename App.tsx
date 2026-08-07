@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
+import { Analytics } from "@vercel/analytics/react";
 import { Page, Product, User, Order, Voucher, CartItem } from './types';
 import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { LocaleProvider } from './context/LocaleContext';
@@ -1071,6 +1072,7 @@ const App: React.FC = () => {
         <ThemeProvider>
             <LocaleProvider>
                 <AppContent />
+                <Analytics />
             </LocaleProvider>
         </ThemeProvider>
     )
