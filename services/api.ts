@@ -154,6 +154,17 @@ function calculateSmartRates(province: string, city: string, weightGrams: number
 }
 
 export const api = {
+    // IndexNow
+    submitIndexNow: async (urls?: string[]): Promise<{ message: string; submittedUrlsCount: number }> => {
+        const response = await authedFetch(`${API_URL}/indexnow/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ urls }),
+        });
+        if (!response.ok) throw new Error('Failed to submit IndexNow request');
+        return response.json();
+    },
+
     // Products
     getProducts: async (): Promise<Product[]> => {
         const response = await authedFetch(`${API_URL}/products`);

@@ -241,6 +241,12 @@ app.post('/api/products', requireAdmin, async (req, res) => {
         const product = await prisma.product.create({
             data: productData,
         });
+
+        // Trigger IndexNow notification for new product URL asynchronously
+        const slugifyLocal = (t: string) => t.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+        const prodSlug = product.slug || slugifyLocal(product.name);
+        submitToIndexNow([`/produk/${prodSlug}`]).catch(() => {});
+
         res.json(product);
     } catch (error) {
         res.status(500).json({ error: 'Gagal membuat produk' });
@@ -270,6 +276,12 @@ const handleProductUpdate = async (req: express.Request, res: express.Response) 
             where: { id: productId },
             data: updateData,
         });
+
+        // Trigger IndexNow notification for updated product URL
+        const slugifyLocal = (t: string) => t.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+        const prodSlug = product.slug || slugifyLocal(product.name);
+        submitToIndexNow([`/produk/${prodSlug}`]).catch(() => {});
+
         res.json(product);
     } catch (error) {
         console.error('Update product error:', error instanceof Error ? error.message : error);
@@ -1372,6 +1384,89 @@ Sitemap: ${baseUrl}/sitemap.xml
 `;
     res.header('Content-Type', 'text/plain');
     res.send(robots);
+});
+
+// --- INDEXNOW PROTOCOL FOR BING, YANDEX, SEZNAM, NAVER INSTANT INDEXING ---
+const INDEXNOW_KEY = '4a8f9b2c3d4e5f6a7b8c9d0e1f2a3b4c';
+
+app.get(`/${INDEXNOW_KEY}.txt`, (req, res) => {
+    res.header('Content-Type', 'text/plain');
+    res.send(INDEXNOW_KEY);
+});
+
+async function submitToIndexNow(urls: string[]) {
+    if (!urls || urls.length === 0) return { success: false, count: 0 };
+    const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
+    const cleanHost = baseUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    
+    const formattedUrls = urls.map(u => u.startsWith('http') ? u : `${baseUrl}${u.startsWith('/') ? '' : '/'}${u}`);
+    const payload = {
+        host: cleanHost,
+        key: INDEXNOW_KEY,
+        keyLocation: `${baseUrl}/${INDEXNOW_KEY}.txt`,
+        urlList: formattedUrls
+    };
+
+    const endpoints = [
+        'https://api.indexnow.org/indexnow',
+        'https://www.bing.com/indexnow',
+        'https://yandex.com/indexnow'
+    ];
+
+    let successCount = 0;
+    for (const endpoint of endpoints) {
+        try {
+            const resp = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json; charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            if (resp.ok || resp.status === 200 || resp.status === 202) {
+                successCount++;
+            }
+        } catch (e) {
+            console.warn(`IndexNow submission error for ${endpoint}:`, e);
+        }
+    }
+    return { success: successCount > 0, count: formattedUrls.length };
+}
+
+app.post('/api/indexnow/submit', requireAdmin, async (req, res) => {
+    try {
+        const { urls } = req.body || {};
+        let urlsToSubmit: string[] = [];
+
+        if (Array.isArray(urls) && urls.length > 0) {
+            urlsToSubmit = urls;
+        } else {
+            const baseUrl = process.env.BETTER_AUTH_URL || 'https://tapakpamungkas.my.id';
+            const products = await prisma.product.findMany({ select: { name: true, slug: true } });
+            
+            const staticPages = [
+                `${baseUrl}/`,
+                `${baseUrl}/katalog`,
+                `${baseUrl}/tentang-kami`,
+                `${baseUrl}/kontak`,
+                `${baseUrl}/kupon`,
+                `${baseUrl}/blog`,
+                `${baseUrl}/faq`
+            ];
+
+            const slugifyLocal = (text: string) => text.toString().toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-');
+            const productPages = products.map(p => `${baseUrl}/produk/${p.slug || slugifyLocal(p.name)}`);
+            urlsToSubmit = [...staticPages, ...productPages];
+        }
+
+        const result = await submitToIndexNow(urlsToSubmit);
+        res.json({
+            message: 'IndexNow submission processed successfully',
+            submittedUrlsCount: result.count,
+            result
+        });
+    } catch (error) {
+        console.error('IndexNow error:', error);
+        res.status(500).json({ error: 'Failed to submit IndexNow request' });
+    }
 });
 
 if (!process.env.VERCEL) {

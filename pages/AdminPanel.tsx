@@ -289,6 +289,8 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [viewPaymentProofUrl, setViewPaymentProofUrl] = useState<{ url: string; orderId: string } | null>(null);
+  const [isSubmittingIndexNow, setIsSubmittingIndexNow] = useState(false);
+  const [indexNowStatus, setIndexNowStatus] = useState('');
 
   const { t } = useTranslations();
 
@@ -552,10 +554,41 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   Pantau metrik penjualan, stok barang, dan aktivitas pesanan real-time.
                 </p>
               </div>
-              <div className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4" /> Sistem Berjalan Normal
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      setIsSubmittingIndexNow(true);
+                      setIndexNowStatus('Mengirim sinyal IndexNow ke Bing/Yandex...');
+                      const res = await api.submitIndexNow();
+                      setIndexNowStatus(`✅ Berhasil! ${res.submittedUrlsCount} URL dikirim ke IndexNow`);
+                      showAdminToast(`Berhasil mengirim ${res.submittedUrlsCount} URL ke mesin pencari IndexNow!`, 'success');
+                      setTimeout(() => setIndexNowStatus(''), 6000);
+                    } catch (e) {
+                      setIndexNowStatus('❌ Gagal mengirim IndexNow');
+                      showAdminToast('Gagal mengirim sinyal IndexNow', 'error');
+                      setTimeout(() => setIndexNowStatus(''), 6000);
+                    } finally {
+                      setIsSubmittingIndexNow(false);
+                    }
+                  }}
+                  disabled={isSubmittingIndexNow}
+                  className="px-3.5 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-400 text-xs font-mono flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  title="Kirim seluruh URL sitemap & produk ke mesin pencari via IndexNow (Bing/Yandex/Seznam)"
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  {isSubmittingIndexNow ? 'Mengirim...' : '⚡ Kirim IndexNow Instant'}
+                </button>
+                <div className="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" /> Sistem Berjalan Normal
+                </div>
               </div>
             </div>
+            {indexNowStatus && (
+              <div className="px-4 py-2 rounded-xl bg-stone-900 border border-emerald-500/30 text-xs font-mono text-emerald-400 animate-fadeIn">
+                {indexNowStatus}
+              </div>
+            )}
 
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

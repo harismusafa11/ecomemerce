@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (req.query && req.query.path) {
             const rawPath = req.query.path;
             const subpath = Array.isArray(rawPath) ? rawPath.join('/') : rawPath;
-            if (subpath === 'sitemap.xml' || subpath === 'robots.txt') {
+            if (subpath === 'sitemap.xml' || subpath === 'robots.txt' || subpath.endsWith('.txt')) {
                 req.url = `/${subpath}`;
             } else {
                 req.url = `/api/${subpath}`;
