@@ -89,7 +89,7 @@ const ImageUploaderPreview: React.FC<{
       </div>
 
       {/* Grid of uploaded thumbnail previews */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {imageUrls.map((url, idx) => (
           <div key={idx} className="relative aspect-square rounded-lg bg-stone-900 border border-stone-700 overflow-hidden group">
             <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
@@ -507,14 +507,14 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     return (
       <button
         onClick={() => setActiveTab(tabName)}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-xs tracking-wide transition-all ${
+        className={`w-full flex items-center justify-center lg:justify-start gap-3 px-4 py-3 rounded-xl font-medium text-xs tracking-wide transition-all ${
           isActive
             ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 font-bold shadow-lg gold-glow'
             : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200'
         }`}
       >
         {icon}
-        <span>{label}</span>
+        <span className="hidden lg:inline">{label}</span>
       </button>
     );
   };
@@ -947,7 +947,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </button>
             </div>
 
-            <div className="glass-panel rounded-2xl overflow-hidden border border-amber-500/20">
+            <div className="glass-panel rounded-2xl overflow-x-auto border border-amber-500/20">
               <table className="w-full text-left text-xs text-stone-300">
                 <thead className="bg-stone-950/80 uppercase font-mono text-[10px] text-amber-400 border-b border-stone-800">
                   <tr>
@@ -1018,7 +1018,7 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </button>
             </div>
 
-            <div className="glass-panel rounded-2xl overflow-hidden border border-amber-500/20">
+            <div className="glass-panel rounded-2xl overflow-x-auto border border-amber-500/20">
               <table className="w-full text-left text-xs text-stone-300">
                 <thead className="bg-stone-950/80 uppercase font-mono text-[10px] text-amber-400 border-b border-stone-800">
                   <tr>
@@ -1386,11 +1386,11 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       </AnimatePresence>
 
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-stone-900/90 border-r border-stone-800 flex flex-col flex-shrink-0 z-20">
-        <div className="p-6 border-b border-stone-800">
-          <div className="flex items-center gap-3">
-            <img src="https://files.catbox.moe/z44d2s.png" alt="" className="h-9 w-9 rounded-full border border-amber-500/40" />
-            <div>
+      <aside className="w-20 lg:w-64 bg-stone-900/90 border-r border-stone-800 flex flex-col flex-shrink-0 z-20">
+        <div className="p-4 lg:p-6 border-b border-stone-800">
+          <div className="flex items-center justify-center lg:justify-start gap-3">
+            <img src="https://files.catbox.moe/z44d2s.png" alt="" className="h-9 w-9 rounded-full border border-amber-500/40 flex-shrink-0" />
+            <div className="hidden lg:block">
               <h1 className="text-base font-serif font-bold gold-gradient-text">Tapak Pamungkas</h1>
               <p className="text-[10px] font-mono text-stone-400">Executive Control Panel</p>
             </div>
@@ -1408,15 +1408,15 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         <div className="p-4 border-t border-stone-800">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors font-medium text-xs"
+            className="w-full flex items-center justify-center lg:justify-start gap-3 px-4 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors font-medium text-xs"
           >
-            <LogOut className="w-4 h-4" /> Keluar dari Admin
+            <LogOut className="w-4 h-4" /> <span className="hidden lg:inline">Keluar dari Admin</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-6 sm:p-10 overflow-y-auto bg-stone-950">{renderContent()}</main>
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-y-auto bg-stone-950">{renderContent()}</main>
     </div>
   );
 };

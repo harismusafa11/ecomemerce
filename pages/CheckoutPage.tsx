@@ -153,7 +153,7 @@ const CheckoutPage: React.FC<CheckoutPageProps> = ({ cartItems, onPlaceOrder, on
 
                 {/* Checkout Steps Indicator */}
                 <div className="glass-panel p-6 rounded-3xl border border-amber-500/20 mb-8">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-amber-500 text-stone-950 font-bold flex items-center justify-center flex-shrink-0">1</div>
                             <div>

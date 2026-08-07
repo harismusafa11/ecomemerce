@@ -39,7 +39,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
                 initial={{ opacity: 0, y: 50, scale: 0.3 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-                className="fixed bottom-5 right-5 z-[100] w-full max-w-sm"
+                className="fixed bottom-5 inset-x-5 sm:inset-x-auto sm:right-5 sm:w-full sm:max-w-sm z-[100]"
             >
                 <div className="bg-white rounded-xl shadow-lg p-4">
                     <div className="flex items-start">

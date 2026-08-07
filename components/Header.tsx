@@ -143,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
                                 <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-700 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-500"></div>
                                 <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas" className="relative h-10 w-10 object-contain rounded-full border border-amber-500/30" />
                             </div>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col hidden sm:block">
                                 <span className="text-lg font-serif font-bold gold-gradient-text tracking-wide group-hover:scale-[1.02] transition-transform">
                                     Tapak Pamungkas
                                 </span>
@@ -153,7 +153,7 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     {/* Navigation Links */}
-                    <nav className="hidden lg:flex items-center space-x-6">
+                    <nav className="hidden xl:flex items-center space-x-6">
                         {navLinks.map(link => (
                             <a
                                 key={link.page}
@@ -179,7 +179,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex items-center space-x-3 md:space-x-4 flex-1 lg:flex-none justify-end">
                         
                         {/* INLINE PERMANENT SEARCH BAR (NO UNMOUNTING OR FOCUS LOSS) */}
-                        <div ref={searchContainerRef} className="relative w-full max-w-[280px] hidden sm:block">
+                        <div ref={searchContainerRef} className="relative w-full max-w-[200px] 2xl:max-w-[280px] hidden xl:block">
                             <form onSubmit={handleSearchSubmit} className="relative w-full">
                                 <input
                                     ref={searchInputRef}
@@ -332,9 +332,9 @@ const Header: React.FC<HeaderProps> = ({
                                     </div>
                                 </button>
                             ) : (
-                                <button onClick={() => onNavigate('login')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-900 hover:bg-amber-500/20 text-stone-200 hover:text-amber-400 border border-stone-800 hover:border-amber-500/40 text-xs font-mono font-medium transition-all">
+                                <button onClick={() => onNavigate('login')} className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-stone-900 hover:bg-amber-500/20 text-stone-200 hover:text-amber-400 border border-stone-800 hover:border-amber-500/40 text-xs font-mono font-medium transition-all">
                                     <UserIconLucide className="w-4 h-4 text-amber-400" />
-                                    <span>{t('header.login')}</span>
+                                    <span className="hidden md:inline">{t('header.login')}</span>
                                 </button>
                             )}
 
@@ -355,7 +355,7 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
 
                         {/* Mobile Menu Toggle */}
-                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="lg:hidden p-2 text-stone-300 hover:text-amber-400 transition-colors">
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="xl:hidden p-2 text-stone-300 hover:text-amber-400 transition-colors">
                             {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
                     </div>
@@ -364,7 +364,7 @@ const Header: React.FC<HeaderProps> = ({
                 {/* Mobile Menu Dropdown */}
                 <AnimatePresence>
                     {isMenuOpen && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="lg:hidden mt-4 pb-4 border-t border-stone-800 overflow-hidden">
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="xl:hidden mt-4 pb-4 border-t border-stone-800 overflow-hidden">
                             <div className="pt-4 px-4 mb-2">
                                 <form onSubmit={handleSearchSubmit} className="relative w-full">
                                     <input

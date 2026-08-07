@@ -69,7 +69,7 @@ const Chatbot: React.FC = () => {
 
     return (
         <>
-            <div className={`fixed bottom-5 right-5 z-50 transition-transform duration-300 ${isOpen ? 'scale-0' : 'scale-100'}`}>
+            <div className={`fixed bottom-5 right-5 z-50 transition-transform duration-300 ${isOpen ? 'scale-0 pointer-events-none' : 'scale-100'}`}>
                 <button
                     onClick={() => setIsOpen(true)}
                     className="bg-brand-primary hover:bg-brand-dark shadow-xl rounded-full p-4 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-gold"
@@ -79,7 +79,7 @@ const Chatbot: React.FC = () => {
                 </button>
             </div>
 
-            <div className={`fixed bottom-0 right-0 sm:bottom-5 sm:right-5 h-full w-full sm:h-[600px] sm:w-[400px] bg-brand-light shadow-2xl rounded-lg flex flex-col transition-all duration-300 z-50 origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`}>
+            <div className={`fixed bottom-0 right-0 sm:bottom-5 sm:right-5 h-full w-full sm:h-[600px] sm:w-[400px] bg-brand-light shadow-2xl rounded-lg flex flex-col transition-all duration-300 z-50 origin-bottom-right ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}>
                 <header className="bg-brand-dark text-white p-4 flex justify-between items-center rounded-t-lg">
                     <h3 className="font-bold text-lg">{t('chatbot.header')}</h3>
                     <button onClick={() => setIsOpen(false)} aria-label={t('chatbot.closeChat')} className="p-1 rounded-full hover:bg-white/10">
