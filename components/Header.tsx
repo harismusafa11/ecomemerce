@@ -143,11 +143,10 @@ const Header: React.FC<HeaderProps> = ({
                                 <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-700 rounded-full blur opacity-40 group-hover:opacity-100 transition duration-500"></div>
                                 <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas" className="relative h-10 w-10 object-contain rounded-full border border-amber-500/30" />
                             </div>
-                            <div className="flex flex-col hidden sm:block">
+                            <div className="flex flex-col">
                                 <span className="text-lg font-serif font-bold gold-gradient-text tracking-wide group-hover:scale-[1.02] transition-transform">
                                     Tapak Pamungkas
                                 </span>
-                                <span className="text-[10px] text-amber-400/80 uppercase tracking-widest font-mono">Warisan Nusantara</span>
                             </div>
                         </a>
                     </div>

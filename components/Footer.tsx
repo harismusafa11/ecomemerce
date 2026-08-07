@@ -21,7 +21,6 @@ const Footer: React.FC<FooterProps> = ({ onAdminTrigger, onNavigate }) => {
                             <img src="https://files.catbox.moe/z44d2s.png" alt="Tapak Pamungkas" className="h-10 w-10 rounded-full border border-amber-500/40" />
                             <div className="flex flex-col">
                                 <span className="text-xl font-serif font-bold gold-gradient-text">Tapak Pamungkas</span>
-                                <span className="text-[10px] text-amber-400/80 uppercase tracking-widest font-mono">Warisan Nusantara</span>
                             </div>
                         </div>
                         <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
