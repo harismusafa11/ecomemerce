@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { GoogleGenAI } from '@google/genai';
 import prisma from './db.js';
 import { hashPassword, verifyPassword, sanitizeUser, isValidEmail, generateAuthToken, verifyAuthToken, setAuthCookie, clearAuthCookie, getTokenFromCookie, safeErrorResponse, sanitizeInput, isValidPassword } from '../lib/security.js';
 
@@ -29,28 +30,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORS configuration
+// CORS configuration - strict allowlist from env in production
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://tapakpamungkas.my.id', 'https://www.tapakpamungkas.my.id', 'https://tapakpamungkas.com', 'https://www.tapakpamungkas.com']
-    : ['http://localhost:5173', 'http://localhost:3000'];
-
-// Allow all origins in production for Vercel preview/deployments if not matching specific domains
-// Or better yet, just rely on the fact that we are using rewrites so it's same-origin.
-// But to be safe, let's allow the Vercel app domain if you know it, or just allow all for this debugging phase.
-// Let's make it dynamic to allow any vercel.app domain.
-const allowVercel = (origin: string | undefined) => {
-    if (!origin) return true;
-    if (allowedOrigins.includes(origin)) return true;
-    if (origin.endsWith('.vercel.app')) return true;
-    return false;
-};
+    ? (process.env.ALLOWED_ORIGINS || 'https://tapakpamungkas.my.id,https://www.tapakpamungkas.my.id,https://tapakpamungkas.com,https://www.tapakpamungkas.com')
+        .split(',').map(o => o.trim()).filter(Boolean)
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, curl, etc)
+        // Allow requests with no origin (mobile apps, curl, same-origin rewrites)
         if (!origin) return callback(null, true);
-
-        if (allowVercel(origin)) {
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -165,6 +155,44 @@ const handleHealth = async (req: express.Request, res: express.Response) => {
 };
 app.get('/health', handleHealth);
 app.get('/api/health', handleHealth);
+
+// --- GEMINI CHATBOT (server-side, key never exposed to client) ---
+const getChatSystemInstruction = (locale: string) => {
+    if (locale === 'en') {
+        return `You are a friendly and helpful customer service assistant for an e-commerce store called "Tapak Pamungkas". 
+    This store sells traditional and mystical items from Indonesian culture, like 'Pusaka' (heirlooms/keris), accessories, ritual oils, and traditional clothing. 
+    Your role is to answer customer questions about products, the store, and policies. Be concise, polite, and knowledgeable about the store's theme. 
+    Do not answer questions that are not related to "Tapak Pamungkas" or its products. Respond in English.`;
+    }
+    return `You are a friendly and helpful customer service assistant for an e-commerce store called "Tapak Pamungkas". 
+    This store sells traditional and mystical items from Indonesian culture, like 'Pusaka' (heirlooms/keris), accessories, ritual oils, and traditional clothing. 
+    Your role is to answer customer questions about products, the store, and policies. Be concise, polite, and knowledgeable about the store's theme. 
+    Do not answer questions that are not related to "Tapak Pamungkas" or its products. Respond in Indonesian.`;
+};
+
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { message, locale } = req.body || {};
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Invalid message' });
+        }
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(503).json({ error: 'Chat service unavailable' });
+        }
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const chat = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            config: {
+                systemInstruction: getChatSystemInstruction(locale === 'en' ? 'en' : 'id'),
+            },
+        });
+        const response = await chat.sendMessage({ message: String(message).slice(0, 2000) });
+        res.json({ text: response.text });
+    } catch (error) {
+        console.error('Gemini chat error:', error instanceof Error ? error.message : error);
+        res.status(500).json({ error: 'Chat service error' });
+    }
+});
 
 // --- PRODUCTS ---
 app.get('/api/products', async (req, res) => {

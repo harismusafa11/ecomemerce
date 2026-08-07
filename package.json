@@ -10,6 +10,8 @@
     "server": "tsx server/index.ts",
     "postinstall": "prisma generate",
     "vercel-build": "prisma generate && node ./node_modules/vite/bin/vite.js build",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/security.test.ts",
     "seed-production": "tsx prisma/seed-production.ts"
   },
   "dependencies": {

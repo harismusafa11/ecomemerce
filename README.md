@@ -92,11 +92,8 @@ npm run server   # Backend (Port 3001)
 ```
 ecommerce/
 ├── api/                    # ⭐ Serverless Functions (Vercel)
-│   ├── index.ts           # Main API handler
-│   ├── products.ts        # Products endpoint
-│   ├── users.ts           # Users endpoint
-│   ├── orders.ts          # Orders endpoint
-│   └── health.ts          # Health check
+│   ├── index.ts           # Main API handler (semua endpoint Express)
+│   └── [...slug].ts       # Catch-all handler untuk /api/*
 ├── server/                # Express backend (local dev)
 ├── prisma/                # Database schema
 ├── components/            # React components
@@ -193,6 +190,12 @@ NODE_ENV="production"
 ## 🧪 Testing
 
 ```bash
+# Unit test (node:test)
+npm test
+
+# Type check
+npm run typecheck
+
 # Test API locally
 curl http://localhost:3001/api/health
 
