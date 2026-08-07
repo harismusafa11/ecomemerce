@@ -6,4 +6,4 @@ Disallow: /admin
 Disallow: /api/
 
 # Sitemap
-Sitemap: https://tapakpamungkas.com/sitemap.xml
+Sitemap: https://tapakpamungkas.my.id/sitemap.xml
