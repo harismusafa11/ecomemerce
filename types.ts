@@ -4,6 +4,7 @@ export interface Product {
   id: number;
   name: string;
   slug?: string;
+  keywords?: string;
   description: string;
   price: number;
   imageUrls: string[];

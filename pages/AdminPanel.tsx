@@ -1095,6 +1095,31 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-mono text-stone-400 mb-1">Custom URL Slug (Opsional SEO)</label>
+                <input
+                  name="slug"
+                  value={formData.slug || ''}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: keris-pusaka-kyai-sengkelat"
+                  className={inputClass}
+                />
+                <span className="text-[10px] text-stone-500 font-mono">Kosongkan untuk buat otomatis dari nama</span>
+              </div>
+              <div>
+                <label className="block text-[11px] font-mono text-stone-400 mb-1">Kata Kunci SEO / Keywords (Opsional)</label>
+                <input
+                  name="keywords"
+                  value={formData.keywords || ''}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: keris sepuh, kyai sengkelat, pusaka bertuah"
+                  className={inputClass}
+                />
+                <span className="text-[10px] text-stone-500 font-mono">Pisahkan dengan koma untuk Google SEO</span>
+              </div>
+            </div>
+
             <div>
               <label className="block text-[11px] font-mono text-stone-400 mb-1">Deskripsi & Tuah</label>
               <textarea

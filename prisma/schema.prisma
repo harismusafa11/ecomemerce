@@ -87,6 +87,8 @@ model Verification {
 model Product {
   id             Int            @id @default(autoincrement())
   name           String
+  slug           String?
+  keywords       String?
   description    String
   price          Float
   imageUrls      String[]

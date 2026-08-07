@@ -223,19 +223,23 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', requireAdmin, async (req, res) => {
     try {
-        const { name, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
+        const { name, slug, keywords, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
+        const productData: any = {
+            name: sanitizeInput(name, 200),
+            description: sanitizeInput(description || '', 5000),
+            price: Number(price),
+            imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : [],
+            category: sanitizeInput(category || '', 100),
+            stock: Math.max(0, Number(stock) || 0),
+            isFlashSale: Boolean(isFlashSale),
+            flashSalePrice: flashSalePrice ? Number(flashSalePrice) : null,
+            flashSaleEnd: flashSaleEnd ? new Date(flashSaleEnd) : null,
+        };
+        if (slug) productData.slug = sanitizeInput(String(slug), 200);
+        if (keywords) productData.keywords = sanitizeInput(String(keywords), 500);
+
         const product = await prisma.product.create({
-            data: {
-                name: sanitizeInput(name, 200),
-                description: sanitizeInput(description || '', 5000),
-                price: Number(price),
-                imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : [],
-                category: sanitizeInput(category || '', 100),
-                stock: Math.max(0, Number(stock) || 0),
-                isFlashSale: Boolean(isFlashSale),
-                flashSalePrice: flashSalePrice ? Number(flashSalePrice) : null,
-                flashSaleEnd: flashSaleEnd ? new Date(flashSaleEnd) : null,
-            },
+            data: productData,
         });
         res.json(product);
     } catch (error) {
@@ -249,9 +253,11 @@ const handleProductUpdate = async (req: express.Request, res: express.Response) 
         if (isNaN(productId)) {
             return res.status(400).json({ error: 'Invalid product ID' });
         }
-        const { name, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
+        const { name, slug, keywords, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
         const updateData: any = {};
         if (name !== undefined) updateData.name = sanitizeInput(String(name), 200);
+        if (slug !== undefined) updateData.slug = slug ? sanitizeInput(String(slug), 200) : null;
+        if (keywords !== undefined) updateData.keywords = keywords ? sanitizeInput(String(keywords), 500) : null;
         if (description !== undefined) updateData.description = sanitizeInput(String(description), 5000);
         if (price !== undefined) updateData.price = Number(price);
         if (imageUrls !== undefined) updateData.imageUrls = Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : undefined;

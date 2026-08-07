@@ -25,6 +25,18 @@ export function getProductSlug(product: Product): string {
   return slugify(product.name);
 }
 
+/**
+ * Get targeted SEO keywords for a product (uses product.keywords or dynamic auto-generated keywords)
+ */
+export function getProductKeywords(product: Product): string {
+  if (product.keywords && product.keywords.trim()) {
+    return product.keywords.trim();
+  }
+  const cleanName = product.name.trim();
+  const cleanCategory = (product.category || 'Pusaka & Benda Bertuah').trim();
+  return `${cleanName}, ${cleanCategory}, pemaharan ${cleanName}, jual ${cleanName}, harga ${cleanName}, keaslian ${cleanName}, pusaka ${cleanName}, ${DEFAULT_KEYWORDS}`;
+}
+
 export interface SEOProps {
   title: string;
   description: string;
@@ -162,6 +174,7 @@ export function generateProductSchema(product: Product) {
     'image': imageObjects,
     'description': product.description,
     'category': product.category,
+    'keywords': getProductKeywords(product),
     'sku': product.slug || String(product.id),
     'mpn': String(product.id),
     'brand': {

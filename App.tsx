@@ -6,7 +6,7 @@ import { LocaleProvider } from './context/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useTranslations } from './hooks/useTranslations';
 import { api, getToken, clearToken, onUnauthorized } from './services/api';
-import { getProductSlug, updateSEO, generateProductSchema, generateBreadcrumbSchema, generateItemListSchema, generateStoreSchema, SITE_URL, SITE_LOGO } from './lib/seo';
+import { getProductSlug, getProductKeywords, updateSEO, generateProductSchema, generateBreadcrumbSchema, generateItemListSchema, generateStoreSchema, SITE_URL, SITE_LOGO } from './lib/seo';
 import { BLOG_ARTICLES, getArticleBySlug, BlogArticle } from './lib/blog';
 
 // Import Components
@@ -378,17 +378,21 @@ const AppContent: React.FC = () => {
         const privatePages: Page[] = ['cart', 'checkout', 'orderConfirmation', 'wishlist', 'orderHistory', 'profile', 'login', 'register', 'adminLogin', 'adminPanel'];
 
         if (currentPage === 'product' && selectedProduct) {
+            const productSlug = getProductSlug(selectedProduct);
+            const productKeywords = getProductKeywords(selectedProduct);
             updateSEO({
                 title: `${selectedProduct.name} - Mahar & Detail Pusaka`,
-                description: `${selectedProduct.name}: ${selectedProduct.description.slice(0, 150)}...`,
+                description: `${selectedProduct.name}: ${selectedProduct.description.slice(0, 160)}...`,
                 image: selectedProduct.imageUrls && selectedProduct.imageUrls[0] ? selectedProduct.imageUrls[0] : 'https://files.catbox.moe/z44d2s.png',
+                keywords: productKeywords,
+                url: `${SITE_URL}/produk/${productSlug}`,
                 type: 'product',
                 jsonLd: [
                     generateProductSchema(selectedProduct),
                     generateBreadcrumbSchema([
                         { name: 'Beranda', url: SITE_URL + '/' },
                         { name: 'Katalog', url: `${SITE_URL}/katalog` },
-                        { name: selectedProduct.name, url: `${SITE_URL}/produk/${getProductSlug(selectedProduct)}` },
+                        { name: selectedProduct.name, url: `${SITE_URL}/produk/${productSlug}` },
                     ])
                 ]
             });
