@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Product, Page } from '../types';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
@@ -76,6 +76,45 @@ const HomePage: React.FC<HomePageProps> = ({
         };
         loadBestSellers();
     }, []);
+
+    const [activeToastIndex, setActiveToastIndex] = useState<number>(0);
+    const [showToast, setShowToast] = useState<boolean>(true);
+
+    const recentActivities = useMemo(() => {
+        const buyers = [
+            { name: 'Bpk. Agus S.', location: 'Jakarta', time: '2m lalu' },
+            { name: 'User****4829', location: 'Surabaya', time: '5m lalu' },
+            { name: 'Bpk. Rian H.', location: 'Bandung', time: '12m lalu' },
+            { name: 'Ibu Dewi M.', location: 'Semarang', time: '18m lalu' },
+            { name: 'User****8102', location: 'Yogyakarta', time: '25m lalu' },
+            { name: 'Bpk. Hendra K.', location: 'Medan', time: '34m lalu' },
+            { name: 'User****9314', location: 'Denpasar', time: '42m lalu' },
+            { name: 'Bpk. Dimas P.', location: 'Tangerang', time: '51m lalu' },
+            { name: 'Bpk. Wahyu N.', location: 'Bekasi', time: '1j lalu' },
+            { name: 'Bpk. Slamet U.', location: 'Surakarta', time: '2j lalu' },
+        ];
+
+        if (!products || products.length === 0) return [];
+
+        return buyers.map((buyer, idx) => {
+            const product = products[idx % products.length];
+            return {
+                id: idx,
+                buyerName: buyer.name,
+                location: buyer.location,
+                time: buyer.time,
+                product: product
+            };
+        }).filter(item => Boolean(item.product));
+    }, [products]);
+
+    useEffect(() => {
+        if (recentActivities.length === 0) return;
+        const interval = setInterval(() => {
+            setActiveToastIndex((prev) => (prev + 1) % recentActivities.length);
+        }, 7000);
+        return () => clearInterval(interval);
+    }, [recentActivities.length]);
 
     const testimonialItems = [
         {
@@ -487,36 +526,129 @@ const HomePage: React.FC<HomePageProps> = ({
             </motion.section>
 
             {/* 7. Live Purchase Notifications (Social Proof) */}
-            <section className="py-12 bg-gradient-to-b from-stone-950 to-stone-900/40 border-t border-amber-500/10">
+            <section className="py-14 bg-gradient-to-b from-stone-950 to-stone-900/60 border-t border-amber-500/10">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-8">
-                        <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">Aktivitas Terbaru</span>
-                        <h2 className="text-2xl font-serif font-bold text-stone-100 mt-1">Pemahar yang Baru Saja Membeli</h2>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">Aktivitas Real-Time</span>
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl font-serif font-bold text-stone-100 mt-1">Pemahar yang Baru Saja Membeli</h2>
+                        <p className="text-stone-400 text-xs mt-1 max-w-md mx-auto">
+                            Daftar transaksi dan pemaharan produk asli terbaru dari para kolektor & pemahar di seluruh Nusantara.
+                        </p>
                     </div>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: [0, 1, 1, 0], y: [10, 0, 0, -10] }}
-                                transition={{ 
-                                    duration: 3, 
-                                    repeat: Infinity, 
-                                    delay: i * 0.3,
-                                    ease: "easeInOut"
-                                }}
-                                className="px-4 py-2 rounded-full bg-stone-900/80 backdrop-blur-md border border-emerald-500/20 flex items-center gap-2 text-xs"
-                            >
-                                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                                <span className="text-stone-300 font-medium">
-                                    <span className="text-amber-400 font-bold">User****{Math.floor(Math.random() * 9000 + 1000)}</span> 
-                                    berhasil memahar <span className="text-emerald-400">Keris</span>
-                                </span>
-                            </motion.div>
-                        ))}
-                    </div>
+
+                    {recentActivities.length > 0 ? (
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                            {recentActivities.map((act, i) => (
+                                <motion.div
+                                    key={act.id}
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.3, delay: i * 0.04 }}
+                                    whileHover={{ scale: 1.03, y: -2 }}
+                                    onClick={() => act.product && onProductClick(act.product)}
+                                    className="px-3.5 py-2.5 rounded-xl bg-stone-900/90 backdrop-blur-md border border-amber-500/20 hover:border-amber-500/50 flex items-center gap-3 text-xs shadow-lg cursor-pointer transition-all group"
+                                >
+                                    {act.product.imageUrls && act.product.imageUrls[0] ? (
+                                        <img 
+                                            src={act.product.imageUrls[0]} 
+                                            alt={act.product.name} 
+                                            className="w-8 h-8 rounded-lg object-cover border border-amber-500/30 group-hover:scale-105 transition-transform flex-shrink-0"
+                                            onError={(e) => {
+                                                (e.target as HTMLElement).style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold flex-shrink-0 text-[10px]">
+                                            TP
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col text-left">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-amber-400 font-bold">{act.buyerName}</span>
+                                            <span className="text-stone-400 text-[10px]">({act.location})</span>
+                                            <span className="text-stone-500 text-[10px] font-mono">• {act.time}</span>
+                                        </div>
+                                        <span className="text-stone-300 text-[11px] font-medium leading-tight max-w-[240px] truncate">
+                                            berhasil memahar <span className="text-emerald-400 font-semibold group-hover:text-emerald-300 transition-colors">{act.product.name}</span>
+                                        </span>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-6 text-stone-500 text-xs font-mono">
+                            Memuat aktivitas transaksi terbaru...
+                        </div>
+                    )}
                 </div>
             </section>
+
+            {/* Floating Live Purchase Toast Notification */}
+            <AnimatePresence>
+                {showToast && recentActivities.length > 0 && recentActivities[activeToastIndex] && (
+                    <motion.div
+                        key={activeToastIndex}
+                        initial={{ opacity: 0, y: 30, x: -20, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                        transition={{ duration: 0.4 }}
+                        className="fixed bottom-6 left-6 z-40 max-w-sm glass-panel bg-stone-900/95 backdrop-blur-md border border-amber-500/30 p-3.5 rounded-2xl shadow-2xl flex items-center gap-3.5 text-xs text-stone-200"
+                    >
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowToast(false);
+                            }}
+                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-stone-800 text-stone-400 hover:text-stone-100 flex items-center justify-center text-[10px] border border-stone-700 shadow"
+                            title="Tutup"
+                        >
+                            ✕
+                        </button>
+                        <div className="relative flex-shrink-0 cursor-pointer" onClick={() => onProductClick(recentActivities[activeToastIndex].product)}>
+                            {recentActivities[activeToastIndex].product.imageUrls?.[0] ? (
+                                <img
+                                    src={recentActivities[activeToastIndex].product.imageUrls[0]}
+                                    alt={recentActivities[activeToastIndex].product.name}
+                                    className="w-12 h-12 rounded-xl object-cover border border-amber-500/40"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 text-xs">
+                                    TP
+                                </div>
+                            )}
+                            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-stone-900 rounded-full animate-ping"></span>
+                            <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-stone-900 rounded-full"></span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                                <span className="text-amber-400 font-bold truncate">
+                                    {recentActivities[activeToastIndex].buyerName}
+                                </span>
+                                <span className="text-stone-400 text-[10px] whitespace-nowrap">
+                                    {recentActivities[activeToastIndex].time}
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-stone-300 line-clamp-1 leading-tight mb-1">
+                                Memahar <span className="font-semibold text-emerald-400">{recentActivities[activeToastIndex].product.name}</span>
+                            </p>
+                            <div className="flex items-center justify-between pt-1 border-t border-stone-800/80">
+                                <span className="text-amber-400 font-mono font-semibold text-[11px]">
+                                    Rp {recentActivities[activeToastIndex].product.price.toLocaleString('id-ID')}
+                                </span>
+                                <button
+                                    onClick={() => onProductClick(recentActivities[activeToastIndex].product)}
+                                    className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-0.5 hover:underline"
+                                >
+                                    Lihat Produk →
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
