@@ -560,5 +560,23 @@ export const api = {
             throw new Error(err.error || 'Failed to save review');
         }
         return response.json();
+    },
+
+    getBestSellers: async (limit: number = 8): Promise<Product[]> => {
+        try {
+            const response = await authedFetch(`${API_URL}/products/best-sellers?limit=${limit}`);
+            if (response.ok) return await response.json();
+        } catch (e) {
+        }
+        return [];
+    },
+
+    getRelatedProducts: async (productId: number, category: string, limit: number = 4): Promise<Product[]> => {
+        try {
+            const response = await authedFetch(`${API_URL}/products/related?productId=${productId}&category=${encodeURIComponent(category)}&limit=${limit}`);
+            if (response.ok) return await response.json();
+        } catch (e) {
+        }
+        return [];
     }
 };

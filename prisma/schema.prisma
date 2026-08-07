@@ -85,21 +85,24 @@ model Verification {
 }
 
 model Product {
-  id            Int            @id @default(autoincrement())
-  name          String
-  description   String
-  price         Float
-  imageUrls     String[]
-  category      String
-  stock         Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  orderItems    OrderItem[]
-  vouchers      Voucher[]
-  cartItems     CartItem[]
-  wishlistItems WishlistItem[]
-  productViews  ProductView[]
-  reviews       Review[]
+  id             Int            @id @default(autoincrement())
+  name           String
+  description    String
+  price          Float
+  imageUrls      String[]
+  category       String
+  stock          Int
+  isFlashSale    Boolean        @default(false)
+  flashSalePrice Float?
+  flashSaleEnd   DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  orderItems     OrderItem[]
+  vouchers       Voucher[]
+  cartItems      CartItem[]
+  wishlistItems  WishlistItem[]
+  productViews   ProductView[]
+  reviews        Review[]
 }
 
 model ProductView {

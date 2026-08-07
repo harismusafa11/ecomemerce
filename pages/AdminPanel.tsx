@@ -321,7 +321,9 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
+    const target = e.target;
+    const { name } = target;
+    const value = target instanceof HTMLInputElement && target.type === 'checkbox' ? target.checked : target.value;
     setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
@@ -333,6 +335,10 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       urls = [...data.imageUrls];
     } else if (data && data.imageUrls) {
       urls = [data.imageUrls];
+    }
+
+    if (type === 'product' && data && data.flashSaleEnd) {
+      initialFormData.flashSaleEnd = new Date(data.flashSaleEnd).toISOString().slice(0, 16);
     }
 
     if (type === 'voucher' && data) {
@@ -376,20 +382,20 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     try {
       switch (type) {
         case 'product':
+          const productPayload = {
+            ...finalData,
+            price: Number(finalData.price),
+            stock: Number(finalData.stock),
+            isFlashSale: Boolean(finalData.isFlashSale),
+            flashSalePrice: finalData.flashSalePrice ? Number(finalData.flashSalePrice) : null,
+            flashSaleEnd: finalData.flashSaleEnd ? new Date(finalData.flashSaleEnd).toISOString() : null
+          };
           if (data) {
-            const updatedProduct = await api.updateProduct(data.id, {
-              ...finalData,
-              price: Number(finalData.price),
-              stock: Number(finalData.stock)
-            });
+            const updatedProduct = await api.updateProduct(data.id, productPayload);
             setProducts(prev => prev.map(p => (p.id === data.id ? updatedProduct : p)));
             showAdminToast(`Produk "${updatedProduct.name}" berhasil diperbarui!`, 'success');
           } else {
-            const newProduct = await api.createProduct({
-              ...finalData,
-              price: Number(finalData.price),
-              stock: Number(finalData.stock)
-            });
+            const newProduct = await api.createProduct(productPayload);
             setProducts(prev => [newProduct, ...prev]);
             showAdminToast(`Produk baru "${newProduct.name}" berhasil disimpan!`, 'success');
           }
@@ -1138,6 +1144,48 @@ const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 <option value="Media Bertuah">Media Bertuah</option>
                 <option value="Herbal & Keilmuan">Herbal & Keilmuan</option>
               </select>
+            </div>
+
+            {/* Flash Sale Toggle */}
+            <div className="p-3 rounded-xl bg-gradient-to-r from-rose-500/10 via-orange-500/10 to-rose-500/10 border border-rose-500/30">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isFlashSale"
+                  checked={Boolean(formData.isFlashSale)}
+                  onChange={handleInputChange}
+                  className="w-4 h-4 accent-rose-500"
+                />
+                <span className="text-xs font-mono font-bold text-rose-400 uppercase tracking-wider">
+                  🔥 Aktifkan Flash Sale (Diskon & Countdown)
+                </span>
+              </label>
+
+              {formData.isFlashSale && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-[11px] font-mono text-stone-400 mb-1">Harga Flash Sale (Rp)</label>
+                    <input
+                      name="flashSalePrice"
+                      type="number"
+                      value={formData.flashSalePrice || ''}
+                      onChange={handleInputChange}
+                      placeholder="Lebih rendah dari harga normal"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-mono text-stone-400 mb-1">Berakhir Pada</label>
+                    <input
+                      name="flashSaleEnd"
+                      type="datetime-local"
+                      value={formData.flashSaleEnd || ''}
+                      onChange={handleInputChange}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Multi image uploader preview */}

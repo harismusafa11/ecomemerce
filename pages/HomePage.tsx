@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, Variants } from 'framer-motion';
 import { Product, Page } from '../types';
 import ProductCard from '../components/ProductCard';
 import QuickViewModal from '../components/QuickViewModal';
 import { FallingPattern } from '../components/ui/falling-pattern';
 import { useTranslations } from '../hooks/useTranslations';
-import { ShieldCheck, Truck, Award, ArrowRight, Quote, MessageCircle, Ticket, Eye, Crown, Flame } from 'lucide-react';
+import { ShieldCheck, Truck, Award, ArrowRight, Quote, MessageCircle, Ticket, Eye, Crown, Flame, Zap } from 'lucide-react';
+import { api } from '../services/api';
 
 interface HomePageProps {
     products: Product[];
@@ -27,6 +28,8 @@ const HomePage: React.FC<HomePageProps> = ({
     const { t } = useTranslations();
     const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [bestSellers, setBestSellers] = useState<Product[]>([]);
+    const [loadingBestSellers, setLoadingBestSellers] = useState(true);
 
     const categories = [
         { id: 'all', name: 'Semua Koleksi' },
@@ -46,6 +49,10 @@ const HomePage: React.FC<HomePageProps> = ({
         return products.slice(0, 2);
     }, [products]);
 
+    const flashSaleProducts = useMemo(() => {
+        return products.filter(p => p.isFlashSale && p.flashSaleEnd && new Date(p.flashSaleEnd) > new Date());
+    }, [products]);
+
     const sectionVariants: Variants = {
         hidden: { opacity: 0, y: 30 },
         visible: {
@@ -54,6 +61,21 @@ const HomePage: React.FC<HomePageProps> = ({
             transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
         }
     };
+
+    useEffect(() => {
+        const loadBestSellers = async () => {
+            try {
+                setLoadingBestSellers(true);
+                const sellers = await api.getBestSellers(4);
+                setBestSellers(sellers);
+            } catch (e) {
+                console.warn('Failed to load best sellers:', e);
+            } finally {
+                setLoadingBestSellers(false);
+            }
+        };
+        loadBestSellers();
+    }, []);
 
     const testimonialItems = [
         {
@@ -259,7 +281,85 @@ const HomePage: React.FC<HomePageProps> = ({
                 </section>
             )}
 
-            {/* 4. Full Catalog Showcase with Category Pills */}
+            {/* 4. Best Sellers Section */}
+            {bestSellers.length > 0 && !loadingBestSellers && (
+                <section className="py-20 bg-gradient-to-b from-stone-900/40 to-stone-950 border-t border-amber-500/20">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Zap className="w-5 h-5 text-amber-400" />
+                                    <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-semibold">Terlaris</span>
+                                </div>
+                                <h2 className="text-3xl sm:text-4xl font-serif font-bold text-stone-100">
+                                    Produk Terlaris Minggu Ini
+                                </h2>
+                            </div>
+                            <button
+                                onClick={() => onNavigate('allProducts')}
+                                className="text-xs font-mono font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                            >
+                                Lihat Semua &rarr;
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {bestSellers.map(product => (
+                                <ProductCard
+                                    key={product.id}
+                                    product={product}
+                                    onClick={() => onProductClick(product)}
+                                    onAddToCart={onAddToCart}
+                                    isInWishlist={wishlistItems.includes(product.id)}
+                                    onToggleWishlist={onToggleWishlist}
+                                    onQuickView={(prod) => setQuickViewProduct(prod)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            {/* 5. Flash Sale Section */}
+            {flashSaleProducts.length > 0 && (
+                <section className="py-20 bg-stone-950 border-t border-stone-800">
+                    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center max-w-3xl mx-auto mb-12">
+                            <div className="inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-rose-500/20 via-orange-500/20 to-rose-500/20 border border-rose-500/30 mb-3">
+                                <span className="text-xs font-mono uppercase tracking-widest text-rose-400 font-bold flex items-center justify-center gap-2">
+                                    <Flame className="w-4 h-4 animate-pulse" />
+                                    Flash Sale Berlangsung
+                                </span>
+                            </div>
+                            <h2 className="text-3xl sm:text-5xl font-serif font-bold text-stone-100">
+                                Diskon Spesial dengan Harga Terbatas
+                            </h2>
+                            <p className="text-stone-400 text-sm mt-3">
+                                Ambil kesempatan sebelum harga kembali normal!
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {flashSaleProducts.map(product => (
+                                <ProductCard
+                                    key={product.id}
+                                    product={{ ...product, isFlashSale: true }}
+                                    onClick={() => onProductClick(product)}
+                                    onAddToCart={onAddToCart}
+                                    isInWishlist={wishlistItems.includes(product.id)}
+                                    onToggleWishlist={onToggleWishlist}
+                                    onQuickView={(prod) => setQuickViewProduct(prod)}
+                                />
+                            ))}
+                        </div>
+                        {flashSaleProducts.length < 4 && (
+                            <div className="text-center mt-8">
+                                <p className="text-stone-500 text-sm">Masih banyak produk lain yang tersedia!</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* 6. Full Catalog Showcase with Category Pills */}
             <motion.section
                 variants={sectionVariants}
                 initial="hidden"
@@ -385,6 +485,38 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
                 </div>
             </motion.section>
+
+            {/* 7. Live Purchase Notifications (Social Proof) */}
+            <section className="py-12 bg-gradient-to-b from-stone-950 to-stone-900/40 border-t border-amber-500/10">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-8">
+                        <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-semibold">Aktivitas Terbaru</span>
+                        <h2 className="text-2xl font-serif font-bold text-stone-100 mt-1">Pemahar yang Baru Saja Membeli</h2>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: [0, 1, 1, 0], y: [10, 0, 0, -10] }}
+                                transition={{ 
+                                    duration: 3, 
+                                    repeat: Infinity, 
+                                    delay: i * 0.3,
+                                    ease: "easeInOut"
+                                }}
+                                className="px-4 py-2 rounded-full bg-stone-900/80 backdrop-blur-md border border-emerald-500/20 flex items-center gap-2 text-xs"
+                            >
+                                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                                <span className="text-stone-300 font-medium">
+                                    <span className="text-amber-400 font-bold">User****{Math.floor(Math.random() * 9000 + 1000)}</span> 
+                                    berhasil memahar <span className="text-emerald-400">Keris</span>
+                                </span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </section>
         </div>
     );
 };

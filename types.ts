@@ -6,11 +6,15 @@ export interface Product {
   slug?: string;
   description: string;
   price: number;
-  imageUrls: string[]; // Changed from imageUrl: string
+  imageUrls: string[];
   category: string;
   stock: number;
   createdAt?: string;
   updatedAt?: string;
+  flashSaleEnd?: string;
+  flashSalePrice?: number;
+  isFlashSale?: boolean;
+  soldCount?: number;
 }
 
 export interface CartItem extends Product {

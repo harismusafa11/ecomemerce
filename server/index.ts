@@ -195,7 +195,7 @@ app.get('/api/products/:id', async (req, res) => {
 
 app.post('/api/products', requireAdmin, async (req, res) => {
     try {
-        const { name, description, price, imageUrls, category, stock } = req.body;
+        const { name, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
         const product = await prisma.product.create({
             data: {
                 name: sanitizeInput(name, 200),
@@ -204,6 +204,9 @@ app.post('/api/products', requireAdmin, async (req, res) => {
                 imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : [],
                 category: sanitizeInput(category || '', 100),
                 stock: Math.max(0, Number(stock) || 0),
+                isFlashSale: Boolean(isFlashSale),
+                flashSalePrice: flashSalePrice ? Number(flashSalePrice) : null,
+                flashSaleEnd: flashSaleEnd ? new Date(flashSaleEnd) : null,
             },
         });
         res.json(product);
@@ -218,17 +221,20 @@ const handleProductUpdate = async (req: express.Request, res: express.Response) 
         if (isNaN(productId)) {
             return res.status(400).json({ error: 'Invalid product ID' });
         }
-        const { name, description, price, imageUrls, category, stock } = req.body;
+        const { name, description, price, imageUrls, category, stock, isFlashSale, flashSalePrice, flashSaleEnd } = req.body;
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = sanitizeInput(String(name), 200);
+        if (description !== undefined) updateData.description = sanitizeInput(String(description), 5000);
+        if (price !== undefined) updateData.price = Number(price);
+        if (imageUrls !== undefined) updateData.imageUrls = Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : undefined;
+        if (category !== undefined) updateData.category = sanitizeInput(String(category), 100);
+        if (stock !== undefined) updateData.stock = Math.max(0, Number(stock));
+        if (isFlashSale !== undefined) updateData.isFlashSale = Boolean(isFlashSale);
+        if (flashSalePrice !== undefined) updateData.flashSalePrice = flashSalePrice ? Number(flashSalePrice) : null;
+        if (flashSaleEnd !== undefined) updateData.flashSaleEnd = flashSaleEnd ? new Date(flashSaleEnd) : null;
         const product = await prisma.product.update({
             where: { id: productId },
-            data: {
-                name: name ? sanitizeInput(String(name), 200) : undefined,
-                description: description ? sanitizeInput(String(description), 5000) : undefined,
-                price: price !== undefined ? Number(price) : undefined,
-                imageUrls: Array.isArray(imageUrls) ? imageUrls.map((u: any) => String(u).slice(0, 500)) : undefined,
-                category: category ? sanitizeInput(String(category), 100) : undefined,
-                stock: stock !== undefined ? Math.max(0, Number(stock)) : undefined,
-            },
+            data: updateData,
         });
         res.json(product);
     } catch (error) {
@@ -304,6 +310,69 @@ app.get('/api/products/popular', async (req, res) => {
     } catch (error) {
         console.error('Popular products error:', error);
         res.status(500).json({ error: 'Failed to fetch popular products' });
+    }
+});
+
+app.get('/api/products/best-sellers', async (req, res) => {
+    try {
+        const limit = Math.min(Number(req.query.limit) || 8, 50);
+        const bestSellers = await prisma.orderItem.groupBy({
+            by: ['productId'],
+            _sum: { quantity: true },
+            orderBy: { _sum: { quantity: 'desc' } },
+            take: limit,
+        });
+        const productIds = bestSellers.map(p => p.productId);
+        const products = await prisma.product.findMany({
+            where: { id: { in: productIds }, stock: { gt: 0 } },
+        });
+        const productsById = new Map(products.map(p => [p.id, p]));
+        const result = bestSellers
+            .map(p => productsById.get(p.productId))
+            .filter(Boolean);
+        res.json(result);
+    } catch (error) {
+        console.error('Best sellers error:', error);
+        res.status(500).json({ error: 'Failed to fetch best sellers' });
+    }
+});
+
+app.get('/api/products/related', async (req, res) => {
+    try {
+        const productId = Number(req.query.productId);
+        const category = String(req.query.category || '');
+        const limit = Math.min(Number(req.query.limit) || 4, 12);
+        
+        if (!productId || !category) {
+            return res.status(400).json({ error: 'productId and category required' });
+        }
+        
+        const related = await prisma.product.findMany({
+            where: {
+                id: { not: productId },
+                category: { contains: category, mode: 'insensitive' },
+                stock: { gt: 0 }
+            },
+            take: limit,
+            orderBy: { createdAt: 'desc' }
+        });
+        
+        if (related.length < limit) {
+            const additional = await prisma.product.findMany({
+                where: {
+                    id: { not: productId, notIn: related.map(p => p.id) },
+                    stock: { gt: 0 }
+                },
+                take: limit - related.length,
+                orderBy: { createdAt: 'desc' }
+            });
+            related.push(...additional);
+        }
+        
+        res.json(related);
+    } catch (error) {
+        console.error('Related products error:', error);
+        res.status(500).json({ error: 'Failed to fetch related products' });
     }
 });
 
